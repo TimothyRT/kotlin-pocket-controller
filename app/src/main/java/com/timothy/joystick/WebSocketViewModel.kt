@@ -11,7 +11,6 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class WebSocketViewModel : ViewModel() {
     private val client = HttpClient(CIO) {
@@ -73,7 +72,7 @@ class WebSocketViewModel : ViewModel() {
     fun send(content: String) {
         viewModelScope.launch {
             runCatching {
-                session?.send(content) ?: throw IllegalStateException("Session is null")
+                session?.send(Frame.Text(content)) ?: throw IllegalStateException("Session is null")
             }.onSuccess {
                 Log.d("ws", "Sent message '$content' to $connectedIpAddress. [${DatetimeManager.now()}]")
             }.onFailure { e ->
