@@ -14,6 +14,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.textfield.TextInputEditText
 import org.w3c.dom.Text
+import java.util.concurrent.ArrayBlockingQueue
 
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
@@ -29,6 +30,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var textAccelerometer: TextView
 
     private val wsViewModel: WebSocketViewModel by viewModels()
+
+    val sensorQueue = ArrayBlockingQueue<String>(128)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,6 +66,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         if (accelerometer == null) {
             textAccelerometer.text = "No Accelerometer Sensor Found!"
         }
+
+        startSenderThread()
     }
 
     override fun onResume() {
@@ -82,32 +87,58 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onSensorChanged(event: SensorEvent?) {
         event?.let {
-            val datetime = DatetimeManager.now()
-            when (it.sensor.type) {
-                Sensor.TYPE_GYROSCOPE -> {
-                    val x = it.values[0] // Rotation around X-axis
-                    val y = it.values[1] // Rotation around Y-axis
-                    val z = it.values[2] // Rotation around Z-axis
+            if ((it.sensor?.type == Sensor.TYPE_ACCELEROMETER) or
+                (it.sensor?.type == Sensor.TYPE_GYROSCOPE)
+            ) {
+                val datetime = DatetimeManager.now()
 
-                    val message = "Gyroscope:\nX: $x\nY: $y\nZ: $z [Sent: $datetime}]"
-                    textGyroscope.text = message
-                    wsViewModel.send(message)
+                // Modify the text on the app's GUI accordingly
+                var sensorType = ""
+                when (it.sensor.type) {
+                    Sensor.TYPE_GYROSCOPE -> {
+//                        val x = it.values[0]
+//                        val y = it.values[1]
+//                        val z = it.values[2]
+//                        val message = "Gyroscope:\nX: $x\nY: $y\nZ: $z [Sent: $datetime}]"
+//                        textGyroscope.text = message
+                        sensorType = "gyroscope"
+                    }
+                    Sensor.TYPE_ACCELEROMETER -> {
+//                        val x = it.values[0]
+//                        val y = it.values[1]
+//                        val z = it.values[2]
+//                        val message = "Accelerometer:\nX: $x\nY: $y\nZ: $z [Sent: $datetime]"
+//                        textAccelerometer.text = message
+                        sensorType = "accelerometer"
+                    }
                 }
-                Sensor.TYPE_ACCELEROMETER -> {
-                    val x = it.values[0] // Acceleration force along X-axis
-                    val y = it.values[1] // Acceleration force along Y-axis
-                    val z = it.values[2] // Acceleration force along Z-axis
 
-                    val message = "Accelerometer:\nX: $x\nY: $y\nZ: $z [Sent: $datetime]"
-                    textAccelerometer.text = message
-                    wsViewModel.send(message)
+                val jsonString = "{" +
+                        "\"x\": ${it.values[0]}, " +
+                        "\"y\": ${it.values[1]}, " +
+                        "\"z\": ${it.values[2]}, " +
+                        "\"datetime\": \"${datetime}\", " +
+                        "\"sensor\": \"$sensorType\"}"
+
+                // Drop the oldest frame if queue is full; otherwise insert without removing
+                if (!sensorQueue.offer(jsonString)) {
+                    sensorQueue.poll()  // remove oldest
+                    sensorQueue.offer(jsonString)  // insert newest
                 }
             }
-
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Not needed for basic gyroscope use
+    }
+
+    private fun startSenderThread() {
+        Thread {
+            while (true) {
+                val jsonString = sensorQueue.take()
+                wsViewModel.send(jsonString)
+            }
+        }.start()
     }
 }
