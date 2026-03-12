@@ -1,46 +1,282 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    tools:context=".MainActivity">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <TextView
-            android:layout_width="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Connection Card                                                  -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/text_ip_address"
-            android:text="IP address: " />
-        <com.google.android.material.textfield.TextInputEditText
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            android:layout_marginBottom="12dp"
+            app:cardElevation="4dp"
+            app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🌐 Connection"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/input_ip_address"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="48dp"
+                        android:hint="Server IP Address"
+                        android:inputType="text"
+                        android:singleLine="true"
+                        android:textSize="14sp" />
+
+                    <Button
+                        android:id="@+id/button_connect"
+                        android:layout_width="wrap_content"
+                        android:layout_height="48dp"
+                        android:text="CONNECT"
+                        android:layout_marginStart="8dp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/text_connection_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="● Disconnected"
+                    android:textColor="@android:color/holo_red_dark"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Gesture Trigger Card  (hold to flag gesture, sampled per frame) -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/input_ip_address" />
-        <Button
-            android:layout_width="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardElevation="4dp"
+            app:cardCornerRadius="12dp"
+            app:cardBackgroundColor="#E8F5E9">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🕹️ Gesture Trigger"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hold while performing a gesture (sampled every frame)"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/button_gesture"
+                    android:layout_width="match_parent"
+                    android:layout_height="72dp"
+                    android:text="● HOLD FOR GESTURE"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:enabled="false"
+                    android:backgroundTint="#4CAF50" />
+
+                <TextView
+                    android:id="@+id/text_gesture"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Waiting for gesture..."
+                    android:textSize="18sp"
+                    android:textAlignment="center"
+                    android:textColor="@android:color/darker_gray"
+                    android:padding="12dp" />
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Sensor Data Card  (raw sensors + AHRS quaternion)               -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:id="@+id/button_connect"
-            android:text="CONNECT"
-            />
+            app:cardElevation="4dp"
+            app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊 Sensor Data"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <!-- Row 1: Gyroscope · Accelerometer -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp"
+                        android:background="#E3F2FD">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔄 Gyroscope"
+                            android:textStyle="bold"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/holo_blue_dark"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/text_gyroscope"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="X: 0.00\nY: 0.00\nZ: 0.00"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="8dp" android:layout_height="match_parent" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp"
+                        android:background="#FFF3E0">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📈 Accelerometer"
+                            android:textStyle="bold"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/holo_orange_dark"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/text_accelerometer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="X: 0.00\nY: 0.00\nZ: 0.00"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Row 2: Magnetometer · AHRS Quaternion -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp"
+                        android:background="#F3E5F5">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🧲 Magnetometer"
+                            android:textStyle="bold"
+                            android:textSize="12sp"
+                            android:textColor="#7B1FA2"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/text_magnetometer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="X: 0.0\nY: 0.0\nZ: 0.0"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="8dp" android:layout_height="match_parent" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="8dp"
+                        android:background="#E8F5E9">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🔮 AHRS (Rotation Vector)"
+                            android:textStyle="bold"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/holo_green_dark"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/text_ahrs"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="w:1.000  x:0.000\ny:0.000  z:0.000"
+                            android:fontFamily="monospace"
+                            android:textSize="11sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/text_gyroscope"
-        tools:text="Gyroscope" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/text_accelerometer"
-        tools:text="Accelerometer" />
-
-</LinearLayout>
+</ScrollView>
