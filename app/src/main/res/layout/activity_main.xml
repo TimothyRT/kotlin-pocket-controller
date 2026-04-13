@@ -13,9 +13,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- Connection Card                                                  -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Connection Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -70,12 +68,19 @@
                     android:textSize="14sp"
                     android:layout_marginTop="8dp" />
 
+                <Button
+                    android:id="@+id/button_joystick_mode"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:text="🎮 Open Joystick Controller"
+                    android:textStyle="bold"
+                    android:backgroundTint="#1565C0"
+                    android:layout_marginTop="12dp" />
+
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- ═══════════════════════════════════════════════════════════════ -->
         <!-- Gesture Trigger Card  (hold to flag gesture, sampled per frame) -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -129,9 +134,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- Sensor Data Card  (raw sensors + AHRS quaternion)               -->
-        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- Sensor Data Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -152,7 +155,6 @@
                     android:textSize="16sp"
                     android:layout_marginBottom="12dp" />
 
-                <!-- Row 1: Gyroscope · Accelerometer -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -214,7 +216,6 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Row 2: Magnetometer · AHRS Quaternion -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

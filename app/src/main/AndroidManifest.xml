@@ -16,6 +16,7 @@
         android:theme="@style/Theme.Joystick"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+        <activity android:name=".JoystickActivity" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

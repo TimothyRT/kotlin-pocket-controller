@@ -2,6 +2,7 @@ package com.timothy.joystick
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -30,13 +31,10 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
-    // Constants
+
     companion object {
         private const val TAG = "MainActivity"
-        /** Panjang Windows */
         private const val WINDOW_WIDTH = 10
-
-        /** Minimum ms antara tiap sample (60 Hz, 1/60 s tick) */
         private const val SAMPLE_INTERVAL_MS = 16L
     }
 
@@ -45,16 +43,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var gyroscope:      Sensor? = null
     private var accelerometer:  Sensor? = null
     private var magnetometer:   Sensor? = null
-    private var rotationVector: Sensor? = null   // AHRS
+    private var rotationVector: Sensor? = null
 
     @Volatile private var latestGyro = FloatArray(3)
     @Volatile private var latestAcc  = FloatArray(3)
     @Volatile private var latestMag  = FloatArray(3)
     @Volatile private var latestQuat = floatArrayOf(0f, 0f, 0f, 1f)
-
     private var hasAcc = false
 
-    // Data buffer
     private val dataBuffer = linkedMapOf<String, MutableList<Any>>(
         "gyro_x"   to mutableListOf(),
         "gyro_y"   to mutableListOf(),
@@ -77,7 +73,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastSampleMs = 0L
     private var isGesturePressed = false
 
-    // UI reference
+    // UI
     private lateinit var inputIpAddress:       TextInputEditText
     private lateinit var buttonConnect:        Button
     private lateinit var textConnectionStatus: TextView
@@ -87,12 +83,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var textMagnetometer:     TextView
     private lateinit var textAhrs:             TextView
     private lateinit var buttonGesture:        Button
+    private lateinit var buttonJoystickMode:   Button
 
     private val wsViewModel: WebSocketViewModel by viewModels()
     private var lastGestureTime = 0L
     private val gestureDebounceMs = 500L
 
     // Lifecycle
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -123,37 +121,30 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
-    // SensorEventListener
+    // Sensor Listener
+
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
-
         when (event.sensor.type) {
-
-            // Raw sensors
-            Sensor.TYPE_ACCELEROMETER -> { latestAcc = event.values.clone(); hasAcc = true }
+            Sensor.TYPE_ACCELEROMETER  -> { latestAcc = event.values.clone(); hasAcc = true }
             Sensor.TYPE_MAGNETIC_FIELD -> { latestMag = event.values.clone() }
 
-            // AHRS
             Sensor.TYPE_ROTATION_VECTOR -> {
                 val q = FloatArray(4)
                 SensorManager.getQuaternionFromVector(q, event.values)
-                latestQuat = floatArrayOf(q[1], q[2], q[3], q[0]) // [x, y, z, w]
+                latestQuat = floatArrayOf(q[1], q[2], q[3], q[0])
             }
 
-            // Gyroscope
             Sensor.TYPE_GYROSCOPE -> {
                 if (!hasAcc) return
-
                 val nowMs = System.currentTimeMillis()
                 if (nowMs - lastSampleMs < SAMPLE_INTERVAL_MS) return
                 lastSampleMs = nowMs
 
                 latestGyro = event.values.clone()
-
                 val (qx, qy, qz, qw) = latestQuat
-
-                // Append ke buffer
                 val ts = dateFormat.format(Date())
+
                 dataBuffer["gyro_x"]!!   += latestGyro[0]
                 dataBuffer["gyro_y"]!!   += latestGyro[1]
                 dataBuffer["gyro_z"]!!   += latestGyro[2]
@@ -172,7 +163,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 updateSensorDisplay(latestGyro, latestAcc, latestMag, qw, qx, qy, qz)
 
-                // Flush kalau sudah penuh datanya
                 if ((dataBuffer["gesture"]?.size ?: 0) >= WINDOW_WIDTH) flushBuffer()
             }
         }
@@ -180,10 +170,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // Buffer flush
-    // (Serialisasi ke dalam bentuk JSON dan kirim data lewat WebSocket)
+    // Buffer
+
     private fun flushBuffer() {
-        if (wsViewModel.connectionState.value != WebSocketViewModel.ConnectionState.Connected) {
+        if (wsViewModel.connectionState.value != WebSocketManager.ConnectionState.Connected) {
             clearBuffer(); return
         }
         wsViewModel.send(buildJson())
@@ -208,7 +198,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private fun clearBuffer() = dataBuffer.values.forEach { it.clear() }
 
-    // Display
     private fun updateSensorDisplay(
         gyro: FloatArray, acc: FloatArray, mag: FloatArray,
         qw: Float, qx: Float, qy: Float, qz: Float
@@ -219,7 +208,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textAhrs.text          = "w:%.3f  x:%.3f\ny:%.3f  z:%.3f".format(qw, qx, qy, qz)
     }
 
-    // Init helpers
+    // Init Helper
     private lateinit var vibrator: Vibrator
 
     private fun initVibrator() {
@@ -251,19 +240,36 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textMagnetometer     = findViewById(R.id.text_magnetometer)
         textAhrs             = findViewById(R.id.text_ahrs)
         buttonGesture        = findViewById(R.id.button_gesture)
+        buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
+
+        buttonJoystickMode.setOnClickListener {
+            val ip = inputIpAddress.text.toString().trim()
+            if (ip.isEmpty()) {
+                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // Singleton guard
+            startActivity(
+                Intent(this, JoystickActivity::class.java)
+                    .putExtra(JoystickActivity.EXTRA_IP, ip)
+            )
+        }
 
         buttonConnect.setOnClickListener {
             val ip = inputIpAddress.text.toString().trim()
-            if (ip.isEmpty()) { Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (ip.isEmpty()) {
+                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             when (wsViewModel.connectionState.value) {
-                is WebSocketViewModel.ConnectionState.Connected -> wsViewModel.disconnect()
+                is WebSocketManager.ConnectionState.Connected -> wsViewModel.disconnect()
                 else -> wsViewModel.connect(ip)
             }
         }
 
         buttonGesture.setOnTouchListener { _, me ->
             when (me.action) {
-                MotionEvent.ACTION_DOWN                        -> { isGesturePressed = true;  buttonGesture.alpha = 1f }
+                MotionEvent.ACTION_DOWN                          -> { isGesturePressed = true;  buttonGesture.alpha = 1f }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { isGesturePressed = false; buttonGesture.alpha = 0.6f }
             }
             false
@@ -279,26 +285,27 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         magnetometer    = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
         rotationVector  = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        if (rotationVector == null) Log.w(TAG, "⚠ Rotation vector unavailable — AHRS will be identity")
-        if (magnetometer   == null) Log.w(TAG, "⚠ Magnetometer unavailable — heading accuracy reduced")
+        if (rotationVector == null) Log.w(TAG, "Rotation vector unavailable — AHRS will be identity")
+        if (magnetometer   == null) Log.w(TAG, "Magnetometer unavailable — heading accuracy reduced")
     }
 
-    // ViewModel observers
+    // ViewModel Observers
     private fun observeViewModel() {
         wsViewModel.connectionState.observe(this) { state ->
             when (state) {
-                is WebSocketViewModel.ConnectionState.Disconnected -> {
+                is WebSocketManager.ConnectionState.Disconnected -> {
                     textConnectionStatus.text = "Disconnected"
                     textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
                     buttonConnect.text = "CONNECT"
+                    buttonConnect.isEnabled = true
                     buttonGesture.isEnabled = false
                 }
-                is WebSocketViewModel.ConnectionState.Connecting -> {
+                is WebSocketManager.ConnectionState.Connecting -> {
                     textConnectionStatus.text = "Connecting..."
                     textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
                     buttonConnect.isEnabled = false
                 }
-                is WebSocketViewModel.ConnectionState.Connected -> {
+                is WebSocketManager.ConnectionState.Connected -> {
                     textConnectionStatus.text = "Connected"
                     textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
                     buttonConnect.text = "DISCONNECT"
@@ -306,7 +313,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     buttonGesture.isEnabled = true
                     clearBuffer()
                 }
-                is WebSocketViewModel.ConnectionState.Error -> {
+                is WebSocketManager.ConnectionState.Error -> {
                     textConnectionStatus.text = "Error: ${state.message}"
                     textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
                     buttonConnect.text = "CONNECT"
@@ -314,7 +321,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 }
             }
         }
-
         wsViewModel.lastGesture.observe(this) { gesture ->
             try {
                 gesture?.let {
