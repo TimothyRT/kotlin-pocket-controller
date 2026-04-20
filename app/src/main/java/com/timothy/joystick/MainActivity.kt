@@ -90,7 +90,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private val gestureDebounceMs = 500L
 
     // Lifecycle
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -122,7 +121,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
 
     // Sensor Listener
-
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
         when (event.sensor.type) {
