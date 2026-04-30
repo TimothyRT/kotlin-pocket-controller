@@ -11,10 +11,13 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
+import java.util.concurrent.atomic.AtomicBoolean
 
 object WebSocketManager {
 
     private const val TAG = "WebSocketManager"
+
+    private val isSessionActive = AtomicBoolean(false)
 
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
@@ -48,6 +51,9 @@ object WebSocketManager {
     // API
 
     fun connect(ip: String, port: Int = 9080) {
+        if (!isSessionActive.compareAndSet(false, true)) {
+            return
+        }
         // Guard: don't open a second socket if already connected/connecting
         val state = _connectionState.value
         if (state is ConnectionState.Connected || state is ConnectionState.Connecting) return
@@ -58,6 +64,7 @@ object WebSocketManager {
             try {
                 val ws = client.webSocketSession { url("ws://$ip:$port") }
                 if (ws.isActive) {
+                    session?.cancel()
                     session = ws
                     _connectionState.postValue(ConnectionState.Connected)
                     startSending(ws)
@@ -66,6 +73,7 @@ object WebSocketManager {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Connection error: $e")
+                isSessionActive.set(false)
                 _connectionState.postValue(ConnectionState.Error(e.message ?: "Unknown error"))
             }
         }
@@ -78,6 +86,7 @@ object WebSocketManager {
 
     fun disconnect() {
         scope.launch {
+            isSessionActive.set(false)
             senderJob?.cancel()
             listenerJob?.cancel()
             session?.close(CloseReason(CloseReason.Codes.NORMAL, "Disconnected"))
@@ -110,6 +119,7 @@ object WebSocketManager {
                         is Frame.Text   -> frame.readText()
                         is Frame.Binary -> frame.readBytes().toString(Charsets.UTF_8)
                         is Frame.Close  -> {
+                            isSessionActive.set(false)
                             _connectionState.postValue(ConnectionState.Disconnected)
                             break
                         }
@@ -119,6 +129,7 @@ object WebSocketManager {
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Listener error: $e")
+                isSessionActive.set(false)
                 _connectionState.postValue(ConnectionState.Error(e.message ?: "Connection lost"))
             }
         }

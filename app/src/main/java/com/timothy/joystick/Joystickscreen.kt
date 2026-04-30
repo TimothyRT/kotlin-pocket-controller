@@ -130,7 +130,7 @@ private fun LeftPanel(
             enabled    = enabled,
             onPress    = { onButtonPress("LB") },
             onRelease  = { onButtonRelease("LB") },
-            modifier   = Modifier.size(64.dp)
+            modifier   = Modifier.size(120.dp)
         )
         AndroidView(
             factory  = { ctx -> VirtualThumbstick(ctx).also { onLeftStickReady(it) } },
@@ -229,7 +229,7 @@ private fun RightPanel(
             enabled    = enabled,
             onPress    = { onButtonPress("RB") },
             onRelease  = { onButtonRelease("RB") },
-            modifier   = Modifier.size(64.dp)
+            modifier   = Modifier.size(120.dp)
         )
         FaceButtonCluster(
             enabled         = enabled,
@@ -291,14 +291,14 @@ private fun FaceButtonCluster(
     onButtonRelease: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.size(120.dp)) {
+    Box(modifier = modifier.size(155.dp)) {
         GamepadImageButton(
             normalRes  = R.drawable.button_y_base,
             pressedRes = R.drawable.button_y_pressed,
             enabled = enabled,
             onPress = { onButtonPress("Y") },
             onRelease = { onButtonRelease("Y") },
-            modifier = Modifier.size(40.dp).align(Alignment.TopCenter)
+            modifier = Modifier.size(55.dp).align(Alignment.TopCenter)
         )
         GamepadImageButton(
             normalRes  = R.drawable.button_x_base,
@@ -306,7 +306,7 @@ private fun FaceButtonCluster(
             enabled = enabled,
             onPress = { onButtonPress("X") },
             onRelease = { onButtonRelease("X") },
-            modifier = Modifier.size(40.dp).align(Alignment.CenterStart)
+            modifier = Modifier.size(55.dp).align(Alignment.CenterStart)
         )
         GamepadImageButton(
             normalRes  = R.drawable.button_b_base,
@@ -314,7 +314,7 @@ private fun FaceButtonCluster(
             enabled = enabled,
             onPress = { onButtonPress("B") },
             onRelease = { onButtonRelease("B") },
-            modifier = Modifier.size(40.dp).align(Alignment.CenterEnd)
+            modifier = Modifier.size(55.dp).align(Alignment.CenterEnd)
         )
         GamepadImageButton(
             normalRes  = R.drawable.button_a_base,
@@ -322,13 +322,12 @@ private fun FaceButtonCluster(
             enabled = enabled,
             onPress = { onButtonPress("A") },
             onRelease = { onButtonRelease("A") },
-            modifier = Modifier.size(40.dp).align(Alignment.BottomCenter)
+            modifier = Modifier.size(55.dp).align(Alignment.BottomCenter)
         )
     }
 }
 
 // System Pill (Start and Back)
-
 @Composable
 private fun SystemPillButton(
     label: String,

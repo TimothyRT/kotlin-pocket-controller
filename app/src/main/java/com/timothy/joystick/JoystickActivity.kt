@@ -53,8 +53,9 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
     @Volatile private var latestQuat = floatArrayOf(0f, 0f, 0f, 1f)
     private var hasAcc       = false
     private var lastSampleMs = 0L
+    @Volatile var isGesturePressed = false
 
-    // ── Sensor data buffer (gesture removed) ─────────────────────────────────
+    // Sensor data buffer
     private val dataBuffer = linkedMapOf<String, MutableList<Any>>(
         "gyro_x"   to mutableListOf(),
         "gyro_y"   to mutableListOf(),
@@ -69,7 +70,8 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
         "ahrs_y"   to mutableListOf(),
         "ahrs_z"   to mutableListOf(),
         "ahrs_w"   to mutableListOf(),
-        "datetime" to mutableListOf()
+        "datetime" to mutableListOf(),
+        "gesture"  to mutableListOf()
     )
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
 
@@ -92,8 +94,14 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
             JoystickScreen(
                 connectionState   = connectionState,
                 onDisconnect      = { finish() },
-                onButtonPress     = { name -> wsViewModel.send("BTN:$name:1") },
-                onButtonRelease   = { name -> wsViewModel.send("BTN:$name:0") },
+                onButtonPress   = { name ->
+                    wsViewModel.send("BTN:$name:1")
+                    if (name == "GESTURE_BUTTON_NAME") setGestureState(true)
+                },
+                onButtonRelease = { name ->
+                    wsViewModel.send("BTN:$name:0")
+                    if (name == "GESTURE_BUTTON_NAME") setGestureState(false)
+                },
                 onLeftStickReady  = { view -> leftStickView  = view },
                 onRightStickReady = { view -> rightStickView = view }
             )
@@ -159,8 +167,9 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
                 dataBuffer["ahrs_z"]!!   += qz
                 dataBuffer["ahrs_w"]!!   += qw
                 dataBuffer["datetime"]!! += ts
+                dataBuffer["gesture"]!!  += isGesturePressed
 
-                if ((dataBuffer["datetime"]?.size ?: 0) >= WINDOW_WIDTH) flushBuffer()
+                if ((dataBuffer["gesture"]?.size ?: 0) >= WINDOW_WIDTH) flushBuffer()
             }
         }
     }
@@ -183,6 +192,7 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
             val arr = JSONArray()
             values.forEach { v ->
                 when (v) {
+                    is Boolean -> arr.put(v)
                     is Float -> arr.put(v.toDouble())
                     else     -> arr.put(v.toString())
                 }
@@ -192,8 +202,11 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
         return obj.toString()
     }
 
-    private fun clearBuffer() = dataBuffer.values.forEach { it.clear() }
+    fun setGestureState(isPressed: Boolean){
+        isGesturePressed = isPressed
+    }
 
+    private fun clearBuffer() = dataBuffer.values.forEach { it.clear() }
 
     // Axis sender
     private fun startAxisSender() {
@@ -242,6 +255,12 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
                 is WebSocketManager.ConnectionState.Error -> axisSenderJob?.cancel()
                 else -> Unit
             }
+        }
+
+        if (wsViewModel.connectionState.value is WebSocketManager.ConnectionState.Connected) {
+            clearBuffer()
+            startAxisSender()
+            Log.d(TAG, "Already connected on start — axis sender + sensor pipeline active")
         }
 
         wsViewModel.lastGesture.observe(this) { gesture ->

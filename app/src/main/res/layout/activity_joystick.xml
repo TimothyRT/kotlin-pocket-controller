@@ -113,50 +113,14 @@
         android:layout_marginBottom="4dp" />
 
     <!-- D-Pad -->
-    <Button
-        android:id="@+id/btn_dpad_up"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:text="▲"
-        android:backgroundTint="#37474F"
-        app:layout_constraintBottom_toTopOf="@id/btn_dpad_left"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="120dp" />
-
-    <Button
-        android:id="@+id/btn_dpad_left"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:text="◀"
-        android:backgroundTint="#37474F"
-        app:layout_constraintBottom_toTopOf="@id/btn_dpad_down"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="168dp" />
-
-    <Button
-        android:id="@+id/btn_dpad_right"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:text="▶"
-        android:backgroundTint="#37474F"
-        app:layout_constraintBottom_toTopOf="@id/btn_dpad_down"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="72dp" />
-
-    <Button
-        android:id="@+id/btn_dpad_down"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:text="▼"
-        android:backgroundTint="#37474F"
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/dpad_compose_view"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginEnd="120dp"
-        android:layout_marginBottom="20dp" />
+        android:layout_marginBottom="32dp"
+        android:layout_marginStart="32dp" />
 
     <!-- RIGHT SIDE -->
 

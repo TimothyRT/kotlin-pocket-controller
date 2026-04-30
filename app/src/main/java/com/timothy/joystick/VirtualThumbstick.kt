@@ -26,20 +26,20 @@ class VirtualThumbstick @JvmOverloads constructor(
 
     // Paint objects
     private val basePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(60, 180, 180, 180)
+        color = Color.argb(80, 0, 0, 0)
         style = Paint.Style.FILL
     }
     private val baseRingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(100, 100, 100, 100)
+        color = Color.BLACK
         style = Paint.Style.STROKE
-        strokeWidth = 3f
+        strokeWidth = 10f
     }
     private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(210, 60, 60, 60)
+        color = Color.rgb(228, 20, 20)
         style = Paint.Style.FILL
     }
     private val thumbActivePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(230, 33, 150, 243)
+        color = Color.rgb(160, 10, 10)
         style = Paint.Style.FILL
     }
 
@@ -54,7 +54,7 @@ class VirtualThumbstick @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         cx = w / 2f
         cy = h / 2f
-        baseRadius = min(w, h) / 2f - 4f
+        baseRadius = min(w, h) / 2f - 10f
         thumbRadius = baseRadius * 0.38f
         thumbX = cx
         thumbY = cy
@@ -64,13 +64,16 @@ class VirtualThumbstick @JvmOverloads constructor(
         // Base
         canvas.drawCircle(cx, cy, baseRadius, basePaint)
         canvas.drawCircle(cx, cy, baseRadius, baseRingPaint)
-        // Cross-hair lines
+
+        // Cross-hair
         baseRingPaint.alpha = 40
         canvas.drawLine(cx - baseRadius, cy, cx + baseRadius, cy, baseRingPaint)
         canvas.drawLine(cx, cy - baseRadius, cx, cy + baseRadius, baseRingPaint)
-        baseRingPaint.alpha = 100
+        baseRingPaint.alpha = 255
+
         // Thumb
         canvas.drawCircle(thumbX, thumbY, thumbRadius, if (active) thumbActivePaint else thumbPaint)
+        canvas.drawCircle(thumbX, thumbY, thumbRadius, baseRingPaint)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
