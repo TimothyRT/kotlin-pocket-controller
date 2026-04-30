@@ -14,14 +14,12 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
-import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -32,15 +30,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainActivity : AppCompatActivity(), SensorEventListener {
+class MainActivityBK : AppCompatActivity(), SensorEventListener {
 
     companion object {
-        private const val TAG            = "MainActivity"
-        private const val WINDOW_WIDTH   = 10
+        private const val TAG = "MainActivity"
+        private const val WINDOW_WIDTH = 10
         private const val SAMPLE_INTERVAL_MS = 16L
     }
 
-    // Sensor
+    // Sensors
     private lateinit var sensorManager: SensorManager
     private var gyroscope:      Sensor? = null
     private var accelerometer:  Sensor? = null
@@ -71,8 +69,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         "gesture"  to mutableListOf()
     )
 
-    private val dateFormat     = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
-    private var lastSampleMs   = 0L
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
+    private var lastSampleMs = 0L
     private var isGesturePressed = false
 
     // UI
@@ -86,15 +84,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var textAhrs:             TextView
     private lateinit var buttonGesture:        Button
     private lateinit var buttonJoystickMode:   Button
-    private lateinit var viewStatusDot:        View
 
     private val wsViewModel: WebSocketViewModel by viewModels()
-    private var lastGestureTime    = 0L
-    private val gestureDebounceMs  = 500L
-    private lateinit var vibrator: Vibrator
+    private var lastGestureTime = 0L
+    private val gestureDebounceMs = 500L
 
     // Lifecycle
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -114,10 +109,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-        gyroscope?.let      { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
-        accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+        gyroscope?.let      { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
+        accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
         magnetometer?.let   { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+        rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
     }
 
     override fun onPause() {
@@ -125,7 +120,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
-    // Sensor Event Listener
+    // Sensor Listener
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
         when (event.sensor.type) {
@@ -208,10 +203,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textGyroscope.text     = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(gyro[0], gyro[1], gyro[2])
         textAccelerometer.text = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(acc[0],  acc[1],  acc[2])
         textMagnetometer.text  = "X: %+.1f\nY: %+.1f\nZ: %+.1f".format(mag[0],  mag[1],  mag[2])
-        textAhrs.text          = "w:%.3f\nx:%.3f\ny:%.3f\nz:%.3f".format(qw, qx, qy, qz)
+        textAhrs.text          = "w:%.3f  x:%.3f\ny:%.3f  z:%.3f".format(qw, qx, qy, qz)
     }
 
-    // Init
+    // Init Helper
+    private lateinit var vibrator: Vibrator
 
     private fun initVibrator() {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -243,33 +239,24 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textAhrs             = findViewById(R.id.text_ahrs)
         buttonGesture        = findViewById(R.id.button_gesture)
         buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
-        viewStatusDot        = findViewById(R.id.view_status_dot)
 
-        // Launch Controller
         buttonJoystickMode.setOnClickListener {
             val ip = inputIpAddress.text.toString().trim()
             if (ip.isEmpty()) {
-                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val intent = Intent(this, JoystickActivity::class.java).apply {
-                putExtra(JoystickActivity.EXTRA_IP, ip)
-            }
-
-            val options = ActivityOptionsCompat.makeCustomAnimation(
-                this,
-                R.anim.p5_enter,
-                R.anim.p5_exit
+            // Singleton guard
+            startActivity(
+                Intent(this, JoystickActivity::class.java)
+                    .putExtra(JoystickActivity.EXTRA_IP, ip)
             )
-
-            startActivity(intent, options.toBundle())
         }
 
-        // Connect / Disconnect
         buttonConnect.setOnClickListener {
             val ip = inputIpAddress.text.toString().trim()
             if (ip.isEmpty()) {
-                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             when (wsViewModel.connectionState.value) {
@@ -278,16 +265,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             }
         }
 
-        // Gesture Hold Button
         buttonGesture.setOnTouchListener { _, me ->
             when (me.action) {
-                MotionEvent.ACTION_DOWN                            -> isGesturePressed = true
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL  -> isGesturePressed = false
+                MotionEvent.ACTION_DOWN                          -> { isGesturePressed = true;  buttonGesture.alpha = 1f }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { isGesturePressed = false; buttonGesture.alpha = 0.6f }
             }
             false
         }
-        // Start visually inactive; enabled only once connected
-        buttonGesture.alpha     = 0.4f
+        buttonGesture.alpha = 0.6f
         buttonGesture.isEnabled = false
     }
 
@@ -302,60 +287,38 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         if (magnetometer   == null) Log.w(TAG, "Magnetometer unavailable — heading accuracy reduced")
     }
 
-    // Viewmodel Observer
-
+    // ViewModel Observers
     private fun observeViewModel() {
-
         wsViewModel.connectionState.observe(this) { state ->
             when (state) {
-
                 is WebSocketManager.ConnectionState.Disconnected -> {
-                    setStatusUi(
-                        statusText  = "DISCONNECTED",
-                        statusColor = android.R.color.holo_red_dark,
-                        dotColor    = android.R.color.holo_red_dark,
-                        btnLabel    = "CONNECT",
-                        btnEnabled  = true,
-                        gestureOn   = false
-                    )
+                    textConnectionStatus.text = "Disconnected"
+                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                    buttonConnect.text = "CONNECT"
+                    buttonConnect.isEnabled = true
+                    buttonGesture.isEnabled = false
                 }
-
                 is WebSocketManager.ConnectionState.Connecting -> {
-                    setStatusUi(
-                        statusText  = "CONNECTING...",
-                        statusColor = android.R.color.holo_orange_dark,
-                        dotColor    = android.R.color.holo_orange_dark,
-                        btnLabel    = "CONNECT",
-                        btnEnabled  = false,
-                        gestureOn   = false
-                    )
+                    textConnectionStatus.text = "Connecting..."
+                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
+                    buttonConnect.isEnabled = false
                 }
-
                 is WebSocketManager.ConnectionState.Connected -> {
-                    setStatusUi(
-                        statusText  = "CONNECTED",
-                        statusColor = android.R.color.holo_green_dark,
-                        dotColor    = android.R.color.holo_green_dark,
-                        btnLabel    = "DISCONNECT",
-                        btnEnabled  = true,
-                        gestureOn   = true
-                    )
+                    textConnectionStatus.text = "Connected"
+                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+                    buttonConnect.text = "DISCONNECT"
+                    buttonConnect.isEnabled = true
+                    buttonGesture.isEnabled = true
                     clearBuffer()
                 }
-
                 is WebSocketManager.ConnectionState.Error -> {
-                    setStatusUi(
-                        statusText  = "ERR: ${state.message}",
-                        statusColor = android.R.color.holo_red_dark,
-                        dotColor    = android.R.color.holo_red_dark,
-                        btnLabel    = "CONNECT",
-                        btnEnabled  = true,
-                        gestureOn   = false
-                    )
+                    textConnectionStatus.text = "Error: ${state.message}"
+                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                    buttonConnect.text = "CONNECT"
+                    buttonConnect.isEnabled = true
                 }
             }
         }
-
         wsViewModel.lastGesture.observe(this) { gesture ->
             try {
                 gesture?.let {
@@ -368,39 +331,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     textGesture.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
                     vibrateSuccess()
 
-                    // Reset gesture label after 1.5 s
                     textGesture.postDelayed({
-                        try { textGesture.text = "" }
-                        catch (e: Exception) { Log.e(TAG, "UI reset: $e") }
+                        try {
+                            textGesture.text = "Waiting for gesture..."
+                            textGesture.setTextColor(ContextCompat.getColor(this@MainActivityBK, android.R.color.darker_gray))
+                        } catch (e: Exception) { Log.e(TAG, "UI reset: $e") }
                     }, 1500)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Gesture observer error: $e")
-            }
+            } catch (e: Exception) { Log.e(TAG, "Gesture observer error: $e") }
         }
-    }
-
-    private fun setStatusUi(
-        statusText:  String,
-        statusColor: Int,
-        dotColor:    Int,
-        btnLabel:    String,
-        btnEnabled:  Boolean,
-        gestureOn:   Boolean
-    ) {
-        val color = ContextCompat.getColor(this, statusColor)
-        val dot   = ContextCompat.getColor(this, dotColor)
-
-        textConnectionStatus.text  = statusText
-        textConnectionStatus.setTextColor(color)
-
-        viewStatusDot.backgroundTintList =
-            android.content.res.ColorStateList.valueOf(dot)
-
-        buttonConnect.text      = btnLabel
-        buttonConnect.isEnabled = btnEnabled
-
-        buttonGesture.isEnabled = gestureOn
-        buttonGesture.alpha     = if (gestureOn) 1f else 0.4f
     }
 }

@@ -2,4 +2,15 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="p5_black">#0A0A0A</color>
+    <color name="p5_black_panel">#141414</color>
+    <color name="p5_dark_surface">#1C1C1C</color>
+    <color name="p5_red">#CC0000</color>
+    <color name="p5_red_bright">#FF1A1A</color>
+    <color name="p5_red_dim">#660000</color>
+    <color name="p5_white">#F0F0F0</color>
+    <color name="p5_white_dim">#80F0F0F0</color>
+    <color name="p5_white_faint">#33F0F0F0</color>
+    <color name="p5_accent_yellow">#E8C840</color>
+    <color name="p5_text_muted">#66FFFFFF</color>
 </resources>

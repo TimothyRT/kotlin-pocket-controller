@@ -38,7 +38,6 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
 
     // Thumbstick view references
     private var leftStickView:  VirtualThumbstick? = null
-    private var rightStickView: VirtualThumbstick? = null
 
     // Sensors
     private lateinit var sensorManager: SensorManager
@@ -102,8 +101,7 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
                     wsViewModel.send("BTN:$name:0")
                     if (name == "GESTURE_BUTTON_NAME") setGestureState(false)
                 },
-                onLeftStickReady  = { view -> leftStickView  = view },
-                onRightStickReady = { view -> rightStickView = view }
+                onLeftStickReady  = { view -> leftStickView  = view }
             )
         }
 
@@ -213,20 +211,15 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
         axisSenderJob?.cancel()
         axisSenderJob = scope.launch {
             var prevLX = 0f; var prevLY = 0f
-            var prevRX = 0f; var prevRY = 0f
             while (true) {
                 delay(AXIS_SEND_INTERVAL_MS)
                 if (wsViewModel.connectionState.value != WebSocketManager.ConnectionState.Connected) continue
 
                 val lx = leftStickView?.normX  ?: 0f
                 val ly = leftStickView?.normY  ?: 0f
-                val rx = rightStickView?.normX ?: 0f
-                val ry = rightStickView?.normY ?: 0f
 
                 if (lx != prevLX) { wsViewModel.send("AXIS:LEFT_X:$lx");  prevLX = lx }
                 if (ly != prevLY) { wsViewModel.send("AXIS:LEFT_Y:$ly");  prevLY = ly }
-                if (rx != prevRX) { wsViewModel.send("AXIS:RIGHT_X:$rx"); prevRX = rx }
-                if (ry != prevRY) { wsViewModel.send("AXIS:RIGHT_Y:$ry"); prevRY = ry }
             }
         }
     }

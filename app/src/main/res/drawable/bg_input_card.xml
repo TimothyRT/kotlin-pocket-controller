@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  res/drawable/bg_input_card.xml
+  Dark card with a solid red left-border stripe — classic P5 menu item look.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Red left border -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/p5_red" />
+        </shape>
+    </item>
+
+    <!-- Dark surface inset, leaving left strip visible -->
+    <item android:left="4dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/p5_black_panel" />
+        </shape>
+    </item>
+
+</layer-list>

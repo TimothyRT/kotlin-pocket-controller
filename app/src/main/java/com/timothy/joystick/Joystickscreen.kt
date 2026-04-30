@@ -2,6 +2,9 @@ package com.timothy.joystick
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -30,16 +33,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 
 
-//Oriental Lock (Lock to be horizontally oriented)
+// Oriental Lock (Lock to be horizontally oriented)
 @Composable
 private fun LockLandscape() {
     val context = LocalContext.current
@@ -58,8 +66,7 @@ fun JoystickScreen(
     onDisconnect: () -> Unit,
     onButtonPress: (String) -> Unit,
     onButtonRelease: (String) -> Unit,
-    onLeftStickReady: (VirtualThumbstick) -> Unit,
-    onRightStickReady: (VirtualThumbstick) -> Unit
+    onLeftStickReady: (VirtualThumbstick) -> Unit
 ) {
     LockLandscape()
 
@@ -72,41 +79,64 @@ fun JoystickScreen(
         else                                             -> "Disconnected"                     to Color(0xFFE53935)
     }
 
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .background(Color(0xFF0A0A0A))
     ) {
-        LeftPanel(
-            enabled          = controlsEnabled,
-            onButtonPress    = onButtonPress,
-            onButtonRelease  = onButtonRelease,
-            onLeftStickReady = onLeftStickReady,
-            modifier         = Modifier.weight(1f).fillMaxHeight()
-        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            rotate(-22f, pivot = Offset.Zero) {
+                drawRect(
+                    color = Color(0xFFD32F2F),
+                    topLeft = Offset(-200f, -600f),
+                    size = Size(920f, 3000f),
+                    alpha = 0.92f
+                )
+                drawRect(
+                    color = Color.White,
+                    topLeft = Offset(720f, -600f),
+                    size = Size(8f, 3000f),
+                    alpha = 0.85f
+                )
+            }
+        }
 
-        Spacer(Modifier.width(8.dp))
+        // --- ORIGINAL LAYOUT PRESERVED ---
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LeftPanel(
+                enabled          = controlsEnabled,
+                onButtonPress    = onButtonPress,
+                onButtonRelease  = onButtonRelease,
+                onLeftStickReady = onLeftStickReady,
+                modifier         = Modifier.weight(1f).fillMaxHeight()
+            )
 
-        CenterPanel(
-            statusText      = statusText,
-            statusColor     = statusColor,
-            enabled         = controlsEnabled,
-            onDisconnect    = onDisconnect,
-            onButtonPress   = onButtonPress,
-            onButtonRelease = onButtonRelease,
-            onRightStickReady = onRightStickReady,
-            modifier        = Modifier.weight(1.4f).fillMaxHeight()
-        )
+            Spacer(Modifier.width(8.dp))
 
-        Spacer(Modifier.width(8.dp))
+            CenterPanel(
+                statusText      = statusText,
+                statusColor     = statusColor,
+                enabled         = controlsEnabled,
+                onDisconnect    = onDisconnect,
+                onButtonPress   = onButtonPress,
+                onButtonRelease = onButtonRelease,
+                modifier        = Modifier.weight(1.4f).fillMaxHeight()
+            )
 
-        RightPanel(
-            enabled           = controlsEnabled,
-            onButtonPress     = onButtonPress,
-            onButtonRelease   = onButtonRelease,
-            modifier          = Modifier.weight(1f).fillMaxHeight()
-        )
+            Spacer(Modifier.width(8.dp))
+
+            RightPanel(
+                enabled           = controlsEnabled,
+                onButtonPress     = onButtonPress,
+                onButtonRelease   = onButtonRelease,
+                modifier          = Modifier.weight(1f).fillMaxHeight()
+            )
+        }
     }
 }
 
@@ -132,10 +162,13 @@ private fun LeftPanel(
             onRelease  = { onButtonRelease("LB") },
             modifier   = Modifier.size(120.dp)
         )
-        AndroidView(
-            factory  = { ctx -> VirtualThumbstick(ctx).also { onLeftStickReady(it) } },
-            modifier = Modifier.size(160.dp)
-        )
+
+        Box(modifier = Modifier.graphicsLayer { rotationZ = -5f }) {
+            AndroidView(
+                factory  = { ctx -> VirtualThumbstick(ctx).also { onLeftStickReady(it) } },
+                modifier = Modifier.size(160.dp)
+            )
+        }
     }
 }
 
@@ -148,7 +181,6 @@ private fun CenterPanel(
     onDisconnect: () -> Unit,
     onButtonPress: (String) -> Unit,
     onButtonRelease: (String) -> Unit,
-    onRightStickReady: (VirtualThumbstick) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -162,7 +194,7 @@ private fun CenterPanel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment     = Alignment.CenterVertically
         ) {
-            Text(text = statusText, color = statusColor, fontSize = 13.sp)
+            Text(text = statusText, color = statusColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             SystemPillButton(
                 label     = "Disconnect",
                 enabled   = true,
@@ -172,39 +204,30 @@ private fun CenterPanel(
             )
         }
 
-        // BACK · START
         Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment     = Alignment.CenterVertically
         ) {
-            SystemPillButton(
-                label     = "BACK",
-                enabled   = enabled,
-                onPress   = { onButtonPress("BACK") },
-                onRelease = { onButtonRelease("BACK") }
+            GamepadImageButton(
+                normalRes  = R.drawable.button_back_base,
+                pressedRes = R.drawable.button_back_pressed,
+                enabled    = enabled,
+                onPress    = { onButtonPress("BACK") },
+                onRelease  = { onButtonRelease("BACK") },
+                modifier   = Modifier
+                    .width(64.dp)
+                    .height(30.dp)
             )
-            SystemPillButton(
-                label     = "START",
-                enabled   = enabled,
-                onPress   = { onButtonPress("START") },
-                onRelease = { onButtonRelease("START") }
-            )
-        }
 
-        // D-pad  ←→  Face buttons
-        Row(
-            modifier              = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment     = Alignment.CenterVertically
-        ) {
-            DpadCluster(
-                enabled         = enabled,
-                onButtonPress   = onButtonPress,
-                onButtonRelease = onButtonRelease
-            )
-            AndroidView(
-                factory  = { ctx -> VirtualThumbstick(ctx).also { onRightStickReady(it) } },
-                modifier = Modifier.size(160.dp)
+            GamepadImageButton(
+                normalRes  = R.drawable.button_start_base,
+                pressedRes = R.drawable.button_start_pressed,
+                enabled    = enabled,
+                onPress    = { onButtonPress("START") },
+                onRelease  = { onButtonRelease("START") },
+                modifier   = Modifier
+                    .width(64.dp)
+                    .height(30.dp)
             )
         }
     }
@@ -234,56 +257,13 @@ private fun RightPanel(
         FaceButtonCluster(
             enabled         = enabled,
             onButtonPress   = onButtonPress,
-            onButtonRelease = onButtonRelease
+            onButtonRelease = onButtonRelease,
+            modifier        = Modifier.graphicsLayer { rotationZ = 6f }
         )
     }
 }
 
-// D-pad Cluster
-@Composable
-private fun DpadCluster(
-    enabled: Boolean,
-    onButtonPress: (String) -> Unit,
-    onButtonRelease: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier.size(120.dp)) {
-        GamepadImageButton(
-            normalRes  = R.drawable.dpad_base,
-            pressedRes = R.drawable.dpad_top,
-            enabled = enabled,
-            onPress = { onButtonPress("DPAD_UP") },
-            onRelease = { onButtonRelease("DPAD_UP") },
-            modifier = Modifier.size(40.dp).align(Alignment.TopCenter)
-        )
-        GamepadImageButton(
-            normalRes  = R.drawable.dpad_base,
-            pressedRes = R.drawable.dpad_left,
-            enabled = enabled,
-            onPress = { onButtonPress("DPAD_LEFT") },
-            onRelease = { onButtonRelease("DPAD_LEFT") },
-            modifier = Modifier.size(40.dp).align(Alignment.CenterStart)
-        )
-        GamepadImageButton(
-            normalRes  = R.drawable.dpad_base,
-            pressedRes = R.drawable.dpad_right,
-            enabled = enabled,
-            onPress = { onButtonPress("DPAD_RIGHT") },
-            onRelease = { onButtonRelease("DPAD_RIGHT") },
-            modifier = Modifier.size(40.dp).align(Alignment.CenterEnd)
-        )
-        GamepadImageButton(
-            normalRes  = R.drawable.dpad_base,
-            pressedRes = R.drawable.dpad_bottom,
-            enabled = enabled,
-            onPress = { onButtonPress("DPAD_DOWN") },
-            onRelease = { onButtonRelease("DPAD_DOWN") },
-            modifier = Modifier.size(40.dp).align(Alignment.BottomCenter)
-        )
-    }
-}
-
-// Face button cluster  (Y,X,B,A)
+// Face button cluster (Y,X,B,A)
 @Composable
 private fun FaceButtonCluster(
     enabled: Boolean,
@@ -327,7 +307,7 @@ private fun FaceButtonCluster(
     }
 }
 
-// System Pill (Start and Back)
+// System Pill (Start and Back) - Kept original logic
 @Composable
 private fun SystemPillButton(
     label: String,

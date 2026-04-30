@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Persona.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/p5_red</item>
+        <item name="boxStrokeWidth">1.5dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <item name="boxBackgroundColor">@color/p5_black_panel</item>
+        <item name="hintTextColor">@color/p5_red</item>
+        <item name="android:textColorHint">@color/p5_text_muted</item>
+        <item name="boxCornerRadiusTopStart">0dp</item>
+        <item name="boxCornerRadiusTopEnd">0dp</item>
+        <item name="boxCornerRadiusBottomStart">0dp</item>
+        <item name="boxCornerRadiusBottomEnd">0dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Sharp</item>
+    </style>
+
+    <style name="ShapeAppearance.Sharp" parent="ShapeAppearance.MaterialComponents">
+        <item name="cornerFamily">cut</item>
+        <item name="cornerSize">0dp</item>
+    </style>
+
+    <style name="Persona.TextInputEditText" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox">
+        <item name="android:textColor">@color/p5_white</item>
+        <item name="android:fontFamily">sans-serif-condensed</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+</resources>
