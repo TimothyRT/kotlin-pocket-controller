@@ -118,15 +118,14 @@ object WebSocketManager {
                     val text = when (frame) {
                         is Frame.Text   -> frame.readText()
                         is Frame.Binary -> frame.readBytes().toString(Charsets.UTF_8)
-                        is Frame.Close  -> {
-                            isSessionActive.set(false)
-                            _connectionState.postValue(ConnectionState.Disconnected)
-                            break
-                        }
+                        is Frame.Close  -> break
                         else -> continue
                     }
                     handleMessage(text)
                 }
+                Log.d(TAG, "Incoming channel closed cleanly")
+                isSessionActive.set(false)
+                _connectionState.postValue(ConnectionState.Disconnected)
             } catch (e: Exception) {
                 Log.e(TAG, "Listener error: $e")
                 isSessionActive.set(false)
