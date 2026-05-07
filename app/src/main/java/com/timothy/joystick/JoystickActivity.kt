@@ -177,7 +177,7 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
 
     // Buffer helpers
     private fun flushBuffer() {
-        if (wsViewModel.connectionState.value != WebSocketManager.ConnectionState.Connected) {
+        if (wsViewModel.connectionState.value != UDPManager.ConnectionState.Connected) {
             clearBuffer(); return
         }
         wsViewModel.send(buildJson())
@@ -213,7 +213,7 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
             var prevLX = 0f; var prevLY = 0f
             while (true) {
                 delay(AXIS_SEND_INTERVAL_MS)
-                if (wsViewModel.connectionState.value != WebSocketManager.ConnectionState.Connected) continue
+                if (wsViewModel.connectionState.value != UDPManager.ConnectionState.Connected) continue
 
                 val lx = leftStickView?.normX  ?: 0f
                 val ly = leftStickView?.normY  ?: 0f
@@ -239,18 +239,18 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
     private fun observeViewModelForBusinessLogic() {
         wsViewModel.connectionState.observe(this) { state ->
             when (state) {
-                is WebSocketManager.ConnectionState.Connected -> {
+                is UDPManager.ConnectionState.Connected -> {
                     clearBuffer()
                     startAxisSender()
                     Log.d(TAG, "Connected — axis sender + sensor pipeline active")
                 }
-                is WebSocketManager.ConnectionState.Disconnected,
-                is WebSocketManager.ConnectionState.Error -> axisSenderJob?.cancel()
+                is UDPManager.ConnectionState.Disconnected,
+                is UDPManager.ConnectionState.Error -> axisSenderJob?.cancel()
                 else -> Unit
             }
         }
 
-        if (wsViewModel.connectionState.value is WebSocketManager.ConnectionState.Connected) {
+        if (wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected) {
             clearBuffer()
             startAxisSender()
             Log.d(TAG, "Already connected on start — axis sender + sensor pipeline active")

@@ -176,7 +176,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     // Buffer
 
     private fun flushBuffer() {
-        if (wsViewModel.connectionState.value != WebSocketManager.ConnectionState.Connected) {
+        if (wsViewModel.connectionState.value != UDPManager.ConnectionState.Connected) {
             clearBuffer(); return
         }
         wsViewModel.send(buildJson())
@@ -273,7 +273,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 return@setOnClickListener
             }
             when (wsViewModel.connectionState.value) {
-                is WebSocketManager.ConnectionState.Connected -> wsViewModel.disconnect()
+                is UDPManager.ConnectionState.Connected -> wsViewModel.disconnect()
                 else -> wsViewModel.connect(ip)
             }
         }
@@ -309,7 +309,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         wsViewModel.connectionState.observe(this) { state ->
             when (state) {
 
-                is WebSocketManager.ConnectionState.Disconnected -> {
+                is UDPManager.ConnectionState.Disconnected -> {
                     setStatusUi(
                         statusText  = "DISCONNECTED",
                         statusColor = android.R.color.holo_red_dark,
@@ -320,7 +320,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     )
                 }
 
-                is WebSocketManager.ConnectionState.Connecting -> {
+                is UDPManager.ConnectionState.Connecting -> {
                     setStatusUi(
                         statusText  = "CONNECTING...",
                         statusColor = android.R.color.holo_orange_dark,
@@ -331,7 +331,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     )
                 }
 
-                is WebSocketManager.ConnectionState.Connected -> {
+                is UDPManager.ConnectionState.Connected -> {
                     setStatusUi(
                         statusText  = "CONNECTED",
                         statusColor = android.R.color.holo_green_dark,
@@ -343,7 +343,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     clearBuffer()
                 }
 
-                is WebSocketManager.ConnectionState.Error -> {
+                is UDPManager.ConnectionState.Error -> {
                     setStatusUi(
                         statusText  = "ERR: ${state.message}",
                         statusColor = android.R.color.holo_red_dark,

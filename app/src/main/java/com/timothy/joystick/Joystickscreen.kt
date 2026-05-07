@@ -62,7 +62,7 @@ private fun LockLandscape() {
 // Root screen
 @Composable
 fun JoystickScreen(
-    connectionState: WebSocketManager.ConnectionState?,
+    connectionState: UDPManager.ConnectionState?,
     onDisconnect: () -> Unit,
     onButtonPress: (String) -> Unit,
     onButtonRelease: (String) -> Unit,
@@ -70,12 +70,12 @@ fun JoystickScreen(
 ) {
     LockLandscape()
 
-    val controlsEnabled = connectionState is WebSocketManager.ConnectionState.Connected
+    val controlsEnabled = connectionState is UDPManager.ConnectionState.Connected
 
     val (statusText, statusColor) = when (connectionState) {
-        is WebSocketManager.ConnectionState.Connected   -> "Connected"                         to Color(0xFF43A047)
-        is WebSocketManager.ConnectionState.Connecting  -> "Connecting…"                       to Color(0xFFFB8C00)
-        is WebSocketManager.ConnectionState.Error       -> "Error: ${connectionState.message}" to Color(0xFFE53935)
+        is UDPManager.ConnectionState.Connected   -> "Connected"                         to Color(0xFF43A047)
+        is UDPManager.ConnectionState.Connecting  -> "Connecting…"                       to Color(0xFFFB8C00)
+        is UDPManager.ConnectionState.Error       -> "Error: ${connectionState.message}" to Color(0xFFE53935)
         else                                             -> "Disconnected"                     to Color(0xFFE53935)
     }
 
@@ -205,7 +205,7 @@ private fun CenterPanel(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment     = Alignment.CenterVertically
         ) {
             GamepadImageButton(
@@ -215,8 +215,8 @@ private fun CenterPanel(
                 onPress    = { onButtonPress("BACK") },
                 onRelease  = { onButtonRelease("BACK") },
                 modifier   = Modifier
-                    .width(64.dp)
-                    .height(30.dp)
+                    .width(120.dp)
+                    .height(90.dp)
             )
 
             GamepadImageButton(
@@ -226,8 +226,8 @@ private fun CenterPanel(
                 onPress    = { onButtonPress("START") },
                 onRelease  = { onButtonRelease("START") },
                 modifier   = Modifier
-                    .width(64.dp)
-                    .height(30.dp)
+                    .width(120.dp)
+                    .height(90.dp)
             )
         }
     }

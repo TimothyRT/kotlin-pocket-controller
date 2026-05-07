@@ -5,14 +5,14 @@ import androidx.lifecycle.ViewModel
 
 class WebSocketViewModel : ViewModel() {
 
-    val connectionState: LiveData<WebSocketManager.ConnectionState>
-        get() = WebSocketManager.connectionState
+    val connectionState: LiveData<UDPManager.ConnectionState>
+        get() = UDPManager.connectionState
 
     val lastGesture: LiveData<GestureData?>
-        get() = WebSocketManager.lastGesture
+        get() = UDPManager.lastGesture
 
-    fun connect(ip: String, port: Int = 9080) = WebSocketManager.connect(ip, port)
-    fun disconnect()                           = WebSocketManager.disconnect()
-    fun send(content: String)                  = WebSocketManager.send(content)
-    fun sendCommand(command: String)           = WebSocketManager.send("CMD:$command")
+    fun connect(ip: String, port: Int = 9080) = UDPManager.connect(ip, port)
+    fun disconnect()                           = UDPManager.disconnect()
+    fun send(content: String)                  = UDPManager.send(content)
+    fun sendCommand(command: String)           = UDPManager.send("CMD:$command")
 }

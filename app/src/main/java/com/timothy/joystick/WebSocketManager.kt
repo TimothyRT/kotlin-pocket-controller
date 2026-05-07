@@ -148,7 +148,6 @@ object WebSocketManager {
     }
 
     private fun parseGesture(text: String) {
-        // Format: GESTURE:gesture_name:confidence  OR  DETECTED:gesture_name:confidence
         val parts = text.split(":")
         if (parts.size >= 3) {
             val name       = parts[1]
