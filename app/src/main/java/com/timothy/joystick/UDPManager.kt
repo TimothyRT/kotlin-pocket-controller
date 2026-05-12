@@ -7,17 +7,19 @@ import kotlinx.coroutines.*
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
-import java.util.concurrent.atomic.AtomicBoolean
+import java.net.SocketTimeoutException
 
 object UDPManager {
-
     private const val TAG = "UDPManager"
-    private const val BUFFER_SIZE = 4096
+    private const val TIMEOUT_MS = 3000L
+
+    // Player Identifier
+    var playerId: Byte = 0
 
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
-        object Connected    : ConnectionState()
         object Connecting   : ConnectionState()
+        object Connected    : ConnectionState()
         data class Error(val message: String) : ConnectionState()
     }
 
@@ -27,85 +29,140 @@ object UDPManager {
     private val _lastGesture = MutableLiveData<GestureData?>()
     val lastGesture: LiveData<GestureData?> get() = _lastGesture
 
+    private var socket: DatagramSocket? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private var socket: DatagramSocket? = null
-    private var serverAddress: InetAddress? = null
-    private var serverPort: Int = 9080
-    private var listenerJob: Job? = null
-    private val isRunning = AtomicBoolean(false)
+    private var targetAddress: InetAddress? = null
+    private var targetPort: Int = 9080
 
-    // API
+    private var listenerJob: Job? = null
+    private var watchdogJob: Job? = null
+    private var lastMessageTime: Long = 0
+
+    val serverSlots = MutableLiveData<Pair<Boolean, Boolean>>(Pair(false, false))
 
     fun connect(ip: String, port: Int = 9080) {
-        if (!isRunning.compareAndSet(false, true)) return
+        if (_connectionState.value is ConnectionState.Connected) return
 
-        serverPort = port
+        // 1. Set state to Connecting, NOT Connected
+        _connectionState.postValue(ConnectionState.Connecting)
+
         scope.launch {
             try {
-                serverAddress = InetAddress.getByName(ip)
-                socket = DatagramSocket().apply {
-                    soTimeout = 0          // non-blocking receive via coroutine
-                    reuseAddress = true
+                targetAddress = InetAddress.getByName(ip)
+                targetPort = port
+
+                if (socket == null || socket?.isClosed == true) {
+                    socket = DatagramSocket()
+                    socket?.soTimeout = 1000
                 }
-                _connectionState.postValue(ConnectionState.Connected)
+
                 startListening()
-                Log.d(TAG, "UDP ready → $ip:$port")
+
+                send("CMD:JOIN:$playerId")
+
+                var timeWaited = 0
+                while (_connectionState.value == ConnectionState.Connecting && timeWaited < 3000) {
+                    delay(100)
+                    timeWaited += 100
+                }
+
+                if (_connectionState.value == ConnectionState.Connecting) {
+                    Log.e(TAG, "Connection timed out. Receiver offline.")
+                    _connectionState.postValue(ConnectionState.Error("Could not connect to receiver."))
+                    disconnect()
+                } else if (_connectionState.value == ConnectionState.Connected) {
+                    lastMessageTime = System.currentTimeMillis()
+                    startWatchdog()
+                }
+
             } catch (e: Exception) {
-                isRunning.set(false)
-                Log.e(TAG, "Init error: $e")
-                _connectionState.postValue(ConnectionState.Error(e.message ?: "Init failed"))
+                Log.e(TAG, "Failed to start UDP: $e")
+                _connectionState.postValue(ConnectionState.Error(e.message ?: "Unknown error"))
             }
         }
     }
 
-    /**
-     * Fire-and-forget send. Safe to call from any thread at high frequency.
-     * Drops silently if socket isn't ready — no queue, no blocking.
-     */
     fun send(data: String) {
-        val addr = serverAddress ?: return
-        val sock = socket ?: return
+        val address = targetAddress ?: return
+        if (socket?.isClosed == true) return
+
         scope.launch {
-            runCatching {
+            try {
                 val bytes = data.toByteArray(Charsets.UTF_8)
-                sock.send(DatagramPacket(bytes, bytes.size, addr, serverPort))
-            }.onFailure { Log.e(TAG, "Send error: $it") }
+                val packet = DatagramPacket(bytes, bytes.size, address, targetPort)
+                socket?.send(packet)
+            } catch (e: Exception) {
+                Log.e(TAG, "Send error: $e")
+            }
         }
     }
 
     fun disconnect() {
-        isRunning.set(false)
-        listenerJob?.cancel()
-        socket?.close()
-        socket = null
-        serverAddress = null
-        _connectionState.postValue(ConnectionState.Disconnected)
-        Log.d(TAG, "UDP disconnected")
+        send("CMD:DISCONNECT")
+        scope.launch {
+            delay(50)
+            listenerJob?.cancel()
+            watchdogJob?.cancel()
+            socket?.close()
+            socket = null
+            _connectionState.postValue(ConnectionState.Disconnected)
+
+            // Wipe taken slot memory
+            serverSlots.postValue(Pair(false, false))
+        }
     }
 
-    // Internal Func
+    fun sendBytes(data: ByteArray) {
+        if (socket == null || targetAddress == null || targetPort == -1) return
+
+        scope.launch {
+            try {
+                val packet = DatagramPacket(data, data.size, targetAddress, targetPort)
+                socket?.send(packet)
+            } catch (e: Exception) {
+                Log.e("UDPManager", "Failed to send bytes: ${e.message}")
+            }
+        }
+    }
 
     private fun startListening() {
         listenerJob = scope.launch {
-            val buf = ByteArray(BUFFER_SIZE)
-            val packet = DatagramPacket(buf, buf.size)
-            try {
-                while (isRunning.get()) {
-                    val sock = socket ?: break
-                    runCatching { sock.receive(packet) }
-                        .onSuccess {
-                            val text = String(packet.data, 0, packet.length, Charsets.UTF_8)
-                            handleMessage(text)
-                        }
-                        .onFailure {
-                            if (isRunning.get()) Log.e(TAG, "Receive error: $it")
-                        }
+            val buffer = ByteArray(2048)
+            while (isActive) {
+                try {
+                    val packet = DatagramPacket(buffer, buffer.size)
+                    socket?.receive(packet)
+
+                    val text = String(packet.data, 0, packet.length, Charsets.UTF_8).trim()
+                    lastMessageTime = System.currentTimeMillis()
+
+                    if (_connectionState.value == ConnectionState.Connecting || _connectionState.value == ConnectionState.Disconnected) {
+                        _connectionState.postValue(ConnectionState.Connected)
+                    }
+
+                    handleMessage(text)
+
+                } catch (e: SocketTimeoutException) {
+                    continue
+                } catch (e: Exception) {
+                    if (isActive) Log.e(TAG, "Listen error: $e")
+                    break
                 }
-            } catch (e: Exception) {
-                if (isRunning.get()) {
-                    Log.e(TAG, "Listener crashed: $e")
-                    _connectionState.postValue(ConnectionState.Error(e.message ?: "Lost"))
+            }
+        }
+    }
+
+    private fun startWatchdog() {
+        watchdogJob = scope.launch {
+            while (isActive) {
+                delay(1000)
+                if (_connectionState.value == ConnectionState.Connected) {
+                    val timeSinceLastMsg = System.currentTimeMillis() - lastMessageTime
+                    if (timeSinceLastMsg > TIMEOUT_MS) {
+                        Log.w(TAG, "Connection timeout! No packets received for $TIMEOUT_MS ms.")
+                        _connectionState.postValue(ConnectionState.Disconnected)
+                    }
                 }
             }
         }
@@ -114,22 +171,35 @@ object UDPManager {
     private fun handleMessage(text: String) {
         try {
             when {
-                text.startsWith("GESTURE:")  -> parseGesture(text)
-                text.startsWith("DETECTED:") -> parseGesture(text)
-                text.startsWith("STATUS:")   -> { /* informational */ }
-                else -> Log.d(TAG, "Unhandled: $text")
+                text.startsWith("STATUS:ASSIGNED:") -> {
+                    val assignedId = text.split(":")[2].toByte()
+                    playerId = assignedId // Accept forced slot
+                    Log.d(TAG, "Server assigned us Player ID: $assignedId")
+
+                    if (_connectionState.value != ConnectionState.Connected) {
+                        _connectionState.postValue(ConnectionState.Connected)
+                    }
+                }
+
+                text.startsWith("STATUS:SLOTS:") -> {
+                    // Example Data: STATUS:SLOTS:true,false
+                    val parts = text.split(":")[2].split(",")
+                    val p1Taken = parts[0] == "true"
+                    val p2Taken = parts[1] == "true"
+                    serverSlots.postValue(Pair(p1Taken, p2Taken))
+                }
+
+                text == "STATUS:PONG" || text == "STATUS:ALIVE" -> {
+                    // Status online ACK
+                }
+
+                text == "STATUS:DISCONNECTED" -> {
+                    _connectionState.postValue(ConnectionState.Disconnected)
+                    disconnect()
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Handle error '$text': $e")
-        }
-    }
-
-    private fun parseGesture(text: String) {
-        val parts = text.split(":")
-        if (parts.size >= 3) {
-            val name       = parts[1]
-            val confidence = parts[2].toFloatOrNull() ?: 0f
-            _lastGesture.postValue(GestureData(name, confidence))
+            Log.e(TAG, "Error handling message '$text': $e")
         }
     }
 }

@@ -14,18 +14,22 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.textfield.TextInputEditText
 import org.json.JSONArray
 import org.json.JSONObject
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,12 +37,12 @@ import java.util.Locale
 class MainActivityBK : AppCompatActivity(), SensorEventListener {
 
     companion object {
-        private const val TAG = "MainActivity"
-        private const val WINDOW_WIDTH = 10
-        private const val SAMPLE_INTERVAL_MS = 16L
+        private const val TAG            = "MainActivity"
+        private const val WINDOW_WIDTH   = 15
+        private const val SAMPLE_INTERVAL_MS = 33L
     }
 
-    // Sensors
+    // Sensor
     private lateinit var sensorManager: SensorManager
     private var gyroscope:      Sensor? = null
     private var accelerometer:  Sensor? = null
@@ -58,19 +62,11 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
         "acc_x"    to mutableListOf(),
         "acc_y"    to mutableListOf(),
         "acc_z"    to mutableListOf(),
-        "mag_x"    to mutableListOf(),
-        "mag_y"    to mutableListOf(),
-        "mag_z"    to mutableListOf(),
-        "ahrs_x"   to mutableListOf(),
-        "ahrs_y"   to mutableListOf(),
-        "ahrs_z"   to mutableListOf(),
-        "ahrs_w"   to mutableListOf(),
-        "datetime" to mutableListOf(),
         "gesture"  to mutableListOf()
     )
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
-    private var lastSampleMs = 0L
+    private val dateFormat     = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
+    private var lastSampleMs   = 0L
     private var isGesturePressed = false
 
     // UI
@@ -84,12 +80,15 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
     private lateinit var textAhrs:             TextView
     private lateinit var buttonGesture:        Button
     private lateinit var buttonJoystickMode:   Button
+    private lateinit var viewStatusDot:        View
 
     private val wsViewModel: WebSocketViewModel by viewModels()
-    private var lastGestureTime = 0L
-    private val gestureDebounceMs = 500L
+    private var lastGestureTime    = 0L
+    private val gestureDebounceMs  = 500L
+    private lateinit var vibrator: Vibrator
 
     // Lifecycle
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -109,10 +108,10 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-        gyroscope?.let      { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
-        accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
+        gyroscope?.let      { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+        accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
         magnetometer?.let   { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME) }
+        rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
     }
 
     override fun onPause() {
@@ -120,7 +119,7 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
-    // Sensor Listener
+    // Sensor Event Listener
     override fun onSensorChanged(event: SensorEvent?) {
         event ?: return
         when (event.sensor.type) {
@@ -140,61 +139,44 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
                 lastSampleMs = nowMs
 
                 latestGyro = event.values.clone()
-                val (qx, qy, qz, qw) = latestQuat
-                val ts = dateFormat.format(Date())
 
-                dataBuffer["gyro_x"]!!   += latestGyro[0]
-                dataBuffer["gyro_y"]!!   += latestGyro[1]
-                dataBuffer["gyro_z"]!!   += latestGyro[2]
-                dataBuffer["acc_x"]!!    += latestAcc[0]
-                dataBuffer["acc_y"]!!    += latestAcc[1]
-                dataBuffer["acc_z"]!!    += latestAcc[2]
-                dataBuffer["mag_x"]!!    += latestMag[0]
-                dataBuffer["mag_y"]!!    += latestMag[1]
-                dataBuffer["mag_z"]!!    += latestMag[2]
-                dataBuffer["ahrs_x"]!!   += qx
-                dataBuffer["ahrs_y"]!!   += qy
-                dataBuffer["ahrs_z"]!!   += qz
-                dataBuffer["ahrs_w"]!!   += qw
-                dataBuffer["datetime"]!! += ts
-                dataBuffer["gesture"]!!  += isGesturePressed
+                // Update the UI
+                updateSensorDisplay(latestGyro, latestAcc, latestMag, latestQuat[3], latestQuat[0], latestQuat[1], latestQuat[2])
 
-                updateSensorDisplay(latestGyro, latestAcc, latestMag, qw, qx, qy, qz)
-
-                if ((dataBuffer["gesture"]?.size ?: 0) >= WINDOW_WIDTH) flushBuffer()
+                // Send (Instant "Should be")
+                sendSensorBinary(latestAcc, latestGyro, isGesturePressed)
             }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // Buffer
+    private fun sendSensorBinary(acc: FloatArray, gyro: FloatArray, gesturePressed: Boolean) {
+        // Only send if connected
+        if (wsViewModel.connectionState.value !is UDPManager.ConnectionState.Connected) return
 
-    private fun flushBuffer() {
-        if (wsViewModel.connectionState.value != UDPManager.ConnectionState.Connected) {
-            clearBuffer(); return
-        }
-        wsViewModel.send(buildJson())
-        clearBuffer()
+        // Allocated 26 bytes: 1 (type) + 24 (6 floats) + 1 (boolean)
+        val buffer = ByteBuffer.allocate(26).order(ByteOrder.LITTLE_ENDIAN)
+
+        buffer.put(1.toByte()) // Packet Type 1: Sensor Data
+
+        // Accelerometer (12 bytes)
+        buffer.putFloat(acc[0])
+        buffer.putFloat(acc[1])
+        buffer.putFloat(acc[2])
+
+        // Gyroscope (12 bytes)
+        buffer.putFloat(gyro[0])
+        buffer.putFloat(gyro[1])
+        buffer.putFloat(gyro[2])
+
+        // Gesture State (1 byte)
+        buffer.put((if (gesturePressed) 1 else 0).toByte())
+
+        // Send
+        wsViewModel.sendBytes(buffer.array())
     }
 
-    private fun buildJson(): String {
-        val obj = JSONObject()
-        dataBuffer.forEach { (key, values) ->
-            val arr = JSONArray()
-            values.forEach { v ->
-                when (v) {
-                    is Boolean -> arr.put(v)
-                    is Float   -> arr.put(v.toDouble())
-                    else       -> arr.put(v.toString())
-                }
-            }
-            obj.put(key, arr)
-        }
-        return obj.toString()
-    }
-
-    private fun clearBuffer() = dataBuffer.values.forEach { it.clear() }
 
     private fun updateSensorDisplay(
         gyro: FloatArray, acc: FloatArray, mag: FloatArray,
@@ -203,11 +185,10 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
         textGyroscope.text     = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(gyro[0], gyro[1], gyro[2])
         textAccelerometer.text = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(acc[0],  acc[1],  acc[2])
         textMagnetometer.text  = "X: %+.1f\nY: %+.1f\nZ: %+.1f".format(mag[0],  mag[1],  mag[2])
-        textAhrs.text          = "w:%.3f  x:%.3f\ny:%.3f  z:%.3f".format(qw, qx, qy, qz)
+        textAhrs.text          = "w:%.3f\nx:%.3f\ny:%.3f\nz:%.3f".format(qw, qx, qy, qz)
     }
 
-    // Init Helper
-    private lateinit var vibrator: Vibrator
+    // Init
 
     private fun initVibrator() {
         vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -239,24 +220,33 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
         textAhrs             = findViewById(R.id.text_ahrs)
         buttonGesture        = findViewById(R.id.button_gesture)
         buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
+        viewStatusDot        = findViewById(R.id.view_status_dot)
 
+        // Launch Controller
         buttonJoystickMode.setOnClickListener {
             val ip = inputIpAddress.text.toString().trim()
             if (ip.isEmpty()) {
-                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            // Singleton guard
-            startActivity(
-                Intent(this, JoystickActivity::class.java)
-                    .putExtra(JoystickActivity.EXTRA_IP, ip)
+            val intent = Intent(this, JoystickActivity::class.java).apply {
+                putExtra(JoystickActivity.EXTRA_IP, ip)
+            }
+
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.p5_enter,
+                R.anim.p5_exit
             )
+
+            startActivity(intent, options.toBundle())
         }
 
+        // Connect / Disconnect
         buttonConnect.setOnClickListener {
             val ip = inputIpAddress.text.toString().trim()
             if (ip.isEmpty()) {
-                Toast.makeText(this, "Enter IP address", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             when (wsViewModel.connectionState.value) {
@@ -265,14 +255,16 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
             }
         }
 
+        // Gesture Hold Button
         buttonGesture.setOnTouchListener { _, me ->
             when (me.action) {
-                MotionEvent.ACTION_DOWN                          -> { isGesturePressed = true;  buttonGesture.alpha = 1f }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { isGesturePressed = false; buttonGesture.alpha = 0.6f }
+                MotionEvent.ACTION_DOWN                            -> isGesturePressed = true
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL  -> isGesturePressed = false
             }
             false
         }
-        buttonGesture.alpha = 0.6f
+        // Start visually inactive; enabled only once connected
+        buttonGesture.alpha     = 0.4f
         buttonGesture.isEnabled = false
     }
 
@@ -287,38 +279,59 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
         if (magnetometer   == null) Log.w(TAG, "Magnetometer unavailable — heading accuracy reduced")
     }
 
-    // ViewModel Observers
+    // Viewmodel Observer
+
     private fun observeViewModel() {
+
         wsViewModel.connectionState.observe(this) { state ->
             when (state) {
+
                 is UDPManager.ConnectionState.Disconnected -> {
-                    textConnectionStatus.text = "Disconnected"
-                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-                    buttonConnect.text = "CONNECT"
-                    buttonConnect.isEnabled = true
-                    buttonGesture.isEnabled = false
+                    setStatusUi(
+                        statusText  = "DISCONNECTED",
+                        statusColor = android.R.color.holo_red_dark,
+                        dotColor    = android.R.color.holo_red_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = false
+                    )
                 }
+
                 is UDPManager.ConnectionState.Connecting -> {
-                    textConnectionStatus.text = "Connecting..."
-                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_orange_dark))
-                    buttonConnect.isEnabled = false
+                    setStatusUi(
+                        statusText  = "CONNECTING...",
+                        statusColor = android.R.color.holo_orange_dark,
+                        dotColor    = android.R.color.holo_orange_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = false,
+                        gestureOn   = false
+                    )
                 }
+
                 is UDPManager.ConnectionState.Connected -> {
-                    textConnectionStatus.text = "Connected"
-                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
-                    buttonConnect.text = "DISCONNECT"
-                    buttonConnect.isEnabled = true
-                    buttonGesture.isEnabled = true
-                    clearBuffer()
+                    setStatusUi(
+                        statusText  = "CONNECTED",
+                        statusColor = android.R.color.holo_green_dark,
+                        dotColor    = android.R.color.holo_green_dark,
+                        btnLabel    = "DISCONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = true
+                    )
                 }
+
                 is UDPManager.ConnectionState.Error -> {
-                    textConnectionStatus.text = "Error: ${state.message}"
-                    textConnectionStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
-                    buttonConnect.text = "CONNECT"
-                    buttonConnect.isEnabled = true
+                    setStatusUi(
+                        statusText  = "ERR: ${state.message}",
+                        statusColor = android.R.color.holo_red_dark,
+                        dotColor    = android.R.color.holo_red_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = false
+                    )
                 }
             }
         }
+
         wsViewModel.lastGesture.observe(this) { gesture ->
             try {
                 gesture?.let {
@@ -331,14 +344,39 @@ class MainActivityBK : AppCompatActivity(), SensorEventListener {
                     textGesture.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
                     vibrateSuccess()
 
+                    // Reset gesture label after 1.5 s
                     textGesture.postDelayed({
-                        try {
-                            textGesture.text = "Waiting for gesture..."
-                            textGesture.setTextColor(ContextCompat.getColor(this@MainActivityBK, android.R.color.darker_gray))
-                        } catch (e: Exception) { Log.e(TAG, "UI reset: $e") }
+                        try { textGesture.text = "" }
+                        catch (e: Exception) { Log.e(TAG, "UI reset: $e") }
                     }, 1500)
                 }
-            } catch (e: Exception) { Log.e(TAG, "Gesture observer error: $e") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Gesture observer error: $e")
+            }
         }
+    }
+
+    private fun setStatusUi(
+        statusText:  String,
+        statusColor: Int,
+        dotColor:    Int,
+        btnLabel:    String,
+        btnEnabled:  Boolean,
+        gestureOn:   Boolean
+    ) {
+        val color = ContextCompat.getColor(this, statusColor)
+        val dot   = ContextCompat.getColor(this, dotColor)
+
+        textConnectionStatus.text  = statusText
+        textConnectionStatus.setTextColor(color)
+
+        viewStatusDot.backgroundTintList =
+            android.content.res.ColorStateList.valueOf(dot)
+
+        buttonConnect.text      = btnLabel
+        buttonConnect.isEnabled = btnEnabled
+
+        buttonGesture.isEnabled = gestureOn
+        buttonGesture.alpha     = if (gestureOn) 1f else 0.4f
     }
 }

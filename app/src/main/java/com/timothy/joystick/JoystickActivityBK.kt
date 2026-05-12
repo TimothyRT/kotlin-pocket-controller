@@ -26,7 +26,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class JoystickActivity : AppCompatActivity(), SensorEventListener {
+class JoystickActivityBK : AppCompatActivity(), SensorEventListener {
 
     companion object {
         const val EXTRA_IP = "extra_ip"
@@ -155,13 +155,10 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
         // Only send if connected
         if (wsViewModel.connectionState.value !is UDPManager.ConnectionState.Connected) return
 
-        // Allocated 27 bytes: 1 (type) + 1 (player_id) + 24 (6 floats) + 1 (boolean)
-        val buffer = ByteBuffer.allocate(27).order(ByteOrder.LITTLE_ENDIAN)
+        // Allocated 26 bytes: 1 (type) + 24 (6 floats) + 1 (boolean)
+        val buffer = ByteBuffer.allocate(26).order(ByteOrder.LITTLE_ENDIAN)
 
         buffer.put(1.toByte()) // Packet Type 1: Sensor Data
-
-        // Player ID (1 byte)
-        buffer.put(UDPManager.playerId)
 
         // Accelerometer (12 bytes)
         buffer.putFloat(acc[0])

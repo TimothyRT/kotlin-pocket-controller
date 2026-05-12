@@ -15,4 +15,8 @@ class WebSocketViewModel : ViewModel() {
     fun disconnect()                           = UDPManager.disconnect()
     fun send(content: String)                  = UDPManager.send(content)
     fun sendCommand(command: String)           = UDPManager.send("CMD:$command")
+    fun sendBytes(data: ByteArray)            = UDPManager.sendBytes(data)
+    fun setPlayerId(id: Byte){
+        UDPManager.playerId = id
+    }
 }

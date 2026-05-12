@@ -16,6 +16,7 @@ import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -28,6 +29,8 @@ import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.textfield.TextInputEditText
 import org.json.JSONArray
 import org.json.JSONObject
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,8 +39,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     companion object {
         private const val TAG            = "MainActivity"
-        private const val WINDOW_WIDTH   = 10
-        private const val SAMPLE_INTERVAL_MS = 16L
+        private const val WINDOW_WIDTH   = 15
+        private const val SAMPLE_INTERVAL_MS = 33L
     }
 
     // Sensor
@@ -53,6 +56,20 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     @Volatile private var latestQuat = floatArrayOf(0f, 0f, 0f, 1f)
     private var hasAcc = false
 
+    // Player Selection
+    private lateinit var cardPlayer1: View
+    private lateinit var textP1Title: TextView
+    private lateinit var textP1Status: TextView
+
+    private lateinit var cardPlayer2: View
+    private lateinit var textP2Title: TextView
+    private lateinit var textP2Status: TextView
+
+    private var selectedPlayerSlot: Byte = 1
+
+    private var isPlayer1Taken = false
+    private var isPlayer2Taken = false
+
     private val dataBuffer = linkedMapOf<String, MutableList<Any>>(
         "gyro_x"   to mutableListOf(),
         "gyro_y"   to mutableListOf(),
@@ -60,14 +77,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         "acc_x"    to mutableListOf(),
         "acc_y"    to mutableListOf(),
         "acc_z"    to mutableListOf(),
-        "mag_x"    to mutableListOf(),
-        "mag_y"    to mutableListOf(),
-        "mag_z"    to mutableListOf(),
-        "ahrs_x"   to mutableListOf(),
-        "ahrs_y"   to mutableListOf(),
-        "ahrs_z"   to mutableListOf(),
-        "ahrs_w"   to mutableListOf(),
-        "datetime" to mutableListOf(),
         "gesture"  to mutableListOf()
     )
 
@@ -145,61 +154,47 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 lastSampleMs = nowMs
 
                 latestGyro = event.values.clone()
-                val (qx, qy, qz, qw) = latestQuat
-                val ts = dateFormat.format(Date())
 
-                dataBuffer["gyro_x"]!!   += latestGyro[0]
-                dataBuffer["gyro_y"]!!   += latestGyro[1]
-                dataBuffer["gyro_z"]!!   += latestGyro[2]
-                dataBuffer["acc_x"]!!    += latestAcc[0]
-                dataBuffer["acc_y"]!!    += latestAcc[1]
-                dataBuffer["acc_z"]!!    += latestAcc[2]
-                dataBuffer["mag_x"]!!    += latestMag[0]
-                dataBuffer["mag_y"]!!    += latestMag[1]
-                dataBuffer["mag_z"]!!    += latestMag[2]
-                dataBuffer["ahrs_x"]!!   += qx
-                dataBuffer["ahrs_y"]!!   += qy
-                dataBuffer["ahrs_z"]!!   += qz
-                dataBuffer["ahrs_w"]!!   += qw
-                dataBuffer["datetime"]!! += ts
-                dataBuffer["gesture"]!!  += isGesturePressed
+                // Update the UI
+                updateSensorDisplay(latestGyro, latestAcc, latestMag, latestQuat[3], latestQuat[0], latestQuat[1], latestQuat[2])
 
-                updateSensorDisplay(latestGyro, latestAcc, latestMag, qw, qx, qy, qz)
-
-                if ((dataBuffer["gesture"]?.size ?: 0) >= WINDOW_WIDTH) flushBuffer()
+                // Send (Instant "Should be")
+                sendSensorBinary(latestAcc, latestGyro, isGesturePressed)
             }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
-    // Buffer
+    private fun sendSensorBinary(acc: FloatArray, gyro: FloatArray, gesturePressed: Boolean) {
+        // Only send if connected
+        if (wsViewModel.connectionState.value !is UDPManager.ConnectionState.Connected) return
 
-    private fun flushBuffer() {
-        if (wsViewModel.connectionState.value != UDPManager.ConnectionState.Connected) {
-            clearBuffer(); return
-        }
-        wsViewModel.send(buildJson())
-        clearBuffer()
+        // Allocated 27 bytes: 1 (type) + 1 (player_id) + 24 (6 floats) + 1 (boolean)
+        val buffer = ByteBuffer.allocate(27).order(ByteOrder.LITTLE_ENDIAN)
+
+        buffer.put(1.toByte()) // Packet Type 1: Sensor Data
+
+        // Player ID (1 byte)
+        buffer.put(UDPManager.playerId)
+
+        // Accelerometer (12 bytes)
+        buffer.putFloat(acc[0])
+        buffer.putFloat(acc[1])
+        buffer.putFloat(acc[2])
+
+        // Gyroscope (12 bytes)
+        buffer.putFloat(gyro[0])
+        buffer.putFloat(gyro[1])
+        buffer.putFloat(gyro[2])
+
+        // Gesture State (1 byte)
+        buffer.put((if (gesturePressed) 1 else 0).toByte())
+
+        // Send
+        wsViewModel.sendBytes(buffer.array())
     }
 
-    private fun buildJson(): String {
-        val obj = JSONObject()
-        dataBuffer.forEach { (key, values) ->
-            val arr = JSONArray()
-            values.forEach { v ->
-                when (v) {
-                    is Boolean -> arr.put(v)
-                    is Float   -> arr.put(v.toDouble())
-                    else       -> arr.put(v.toString())
-                }
-            }
-            obj.put(key, arr)
-        }
-        return obj.toString()
-    }
-
-    private fun clearBuffer() = dataBuffer.values.forEach { it.clear() }
 
     private fun updateSensorDisplay(
         gyro: FloatArray, acc: FloatArray, mag: FloatArray,
@@ -241,9 +236,47 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textAccelerometer    = findViewById(R.id.text_accelerometer)
         textMagnetometer     = findViewById(R.id.text_magnetometer)
         textAhrs             = findViewById(R.id.text_ahrs)
+        cardPlayer1 = findViewById(R.id.card_player_1)
+        textP1Title = findViewById(R.id.text_p1_title)
+        textP1Status = findViewById(R.id.text_p1_status)
+
+        cardPlayer2 = findViewById(R.id.card_player_2)
+        textP2Title = findViewById(R.id.text_p2_title)
+        textP2Status = findViewById(R.id.text_p2_status)
         buttonGesture        = findViewById(R.id.button_gesture)
         buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
         viewStatusDot        = findViewById(R.id.view_status_dot)
+
+
+        cardPlayer1.setOnClickListener {
+            // Lock the button if already connected
+            if (wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected) {
+                Toast.makeText(this, "Disconnect to change players.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!isPlayer1Taken) {
+                // Unselect Button
+                selectedPlayerSlot = if (selectedPlayerSlot == 1.toByte()) 0 else 1
+                updatePlayerSlotsUI()
+            }
+        }
+
+        cardPlayer2.setOnClickListener {
+            // Lock the button if already connected
+            if (wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected) {
+                Toast.makeText(this, "Disconnect to change players.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!isPlayer2Taken) {
+                // Unselect Button
+                selectedPlayerSlot = if (selectedPlayerSlot == 2.toByte()) 0 else 2
+                updatePlayerSlotsUI()
+            }
+        }
+
+        updatePlayerSlotsUI()
 
         // Launch Controller
         buttonJoystickMode.setOnClickListener {
@@ -267,11 +300,19 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         // Connect / Disconnect
         buttonConnect.setOnClickListener {
+            if (selectedPlayerSlot == 0.toByte()) {
+                Toast.makeText(this, "Please select a Player Slot!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             val ip = inputIpAddress.text.toString().trim()
             if (ip.isEmpty()) {
                 Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            // Player ID
+            UDPManager.playerId = selectedPlayerSlot
+
             when (wsViewModel.connectionState.value) {
                 is UDPManager.ConnectionState.Connected -> wsViewModel.disconnect()
                 else -> wsViewModel.connect(ip)
@@ -305,8 +346,18 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     // Viewmodel Observer
 
     private fun observeViewModel() {
+        UDPManager.serverSlots.observe(this) { slots ->
+            isPlayer1Taken = slots.first
+            isPlayer2Taken = slots.second
+            updatePlayerSlotsUI()
+        }
 
         wsViewModel.connectionState.observe(this) { state ->
+            if (state is UDPManager.ConnectionState.Connected) {
+                selectedPlayerSlot = UDPManager.playerId
+                updatePlayerSlotsUI()
+            }
+
             when (state) {
 
                 is UDPManager.ConnectionState.Disconnected -> {
@@ -340,7 +391,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                         btnEnabled  = true,
                         gestureOn   = true
                     )
-                    clearBuffer()
                 }
 
                 is UDPManager.ConnectionState.Error -> {
@@ -402,5 +452,54 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         buttonGesture.isEnabled = gestureOn
         buttonGesture.alpha     = if (gestureOn) 1f else 0.4f
+    }
+
+    private fun updatePlayerSlotsUI() {
+        val colorRed = ContextCompat.getColor(this, R.color.p5_red)
+        val colorBlack = ContextCompat.getColor(this, R.color.p5_black)
+        val colorWhite = ContextCompat.getColor(this, R.color.p5_white)
+        val colorDim = ContextCompat.getColor(this, R.color.p5_white_dim)
+        val colorDisabledBg = android.graphics.Color.parseColor("#1A1A1A")
+        val colorDisabledText = android.graphics.Color.parseColor("#4D4D4D")
+
+        val isConnected = wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected
+
+        val p1IsMine = isConnected && UDPManager.playerId == 1.toByte()
+
+        if (isPlayer1Taken && !p1IsMine) {
+            cardPlayer1.setBackgroundColor(colorDisabledBg)
+            textP1Title.setTextColor(colorDisabledText)
+            textP1Status.text = "TAKEN"
+            textP1Status.setTextColor(colorDisabledText)
+        } else if (selectedPlayerSlot == 1.toByte()) {
+            cardPlayer1.setBackgroundColor(colorRed)
+            textP1Title.setTextColor(colorWhite)
+            textP1Status.text = "SELECTED"
+            textP1Status.setTextColor(colorWhite)
+        } else {
+            cardPlayer1.setBackgroundColor(colorBlack)
+            textP1Title.setTextColor(colorRed)
+            textP1Status.text = "AVAILABLE"
+            textP1Status.setTextColor(colorDim)
+        }
+
+        val p2IsMine = isConnected && UDPManager.playerId == 2.toByte()
+
+        if (isPlayer2Taken && !p2IsMine) {
+            cardPlayer2.setBackgroundColor(colorDisabledBg)
+            textP2Title.setTextColor(colorDisabledText)
+            textP2Status.text = "TAKEN"
+            textP2Status.setTextColor(colorDisabledText)
+        } else if (selectedPlayerSlot == 2.toByte()) {
+            cardPlayer2.setBackgroundColor(colorRed)
+            textP2Title.setTextColor(colorWhite)
+            textP2Status.text = "SELECTED"
+            textP2Status.setTextColor(colorWhite)
+        } else {
+            cardPlayer2.setBackgroundColor(colorBlack)
+            textP2Title.setTextColor(colorRed)
+            textP2Status.text = "AVAILABLE"
+            textP2Status.setTextColor(colorDim)
+        }
     }
 }

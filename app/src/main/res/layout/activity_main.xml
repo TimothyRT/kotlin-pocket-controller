@@ -222,6 +222,92 @@
 
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/layout_player_selection"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        app:layout_constraintTop_toBottomOf="@id/card_ip_address"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/card_player_1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/p5_red"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/text_p1_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PLAYER 1"
+                android:textColor="@color/p5_white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/text_p1_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SELECTED"
+                android:textColor="@color/p5_white"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.2" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="16dp"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/card_player_2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/p5_black"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/text_p2_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PLAYER 2"
+                android:textColor="@color/p5_red"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/text_p2_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AVAILABLE"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.2" />
+        </LinearLayout>
+
+    </LinearLayout>
+
     <Button
         android:id="@+id/button_connect"
         android:layout_width="0dp"
@@ -237,7 +323,7 @@
         android:layout_marginStart="20dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="20dp"
-        app:layout_constraintTop_toBottomOf="@id/card_ip_address"
+        app:layout_constraintTop_toBottomOf="@id/layout_player_selection"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -440,7 +526,7 @@
         android:id="@+id/text_version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="v1.0 · ALPHA BUILD"
+        android:text="v0.1.5 · ALPHA BUILD"
         android:textSize="7.5sp"
         android:textColor="@color/p5_white_faint"
         android:fontFamily="sans-serif-condensed"
