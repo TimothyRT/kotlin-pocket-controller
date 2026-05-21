@@ -96,6 +96,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var buttonGesture:        Button
     private lateinit var buttonJoystickMode:   Button
     private lateinit var viewStatusDot:        View
+    // CSV Button
+    private lateinit var buttonShare:          Button
 
     private val wsViewModel: WebSocketViewModel by viewModels()
     private var lastGestureTime    = 0L
@@ -240,12 +242,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         textP1Title = findViewById(R.id.text_p1_title)
         textP1Status = findViewById(R.id.text_p1_status)
 
-        cardPlayer2 = findViewById(R.id.card_player_2)
-        textP2Title = findViewById(R.id.text_p2_title)
-        textP2Status = findViewById(R.id.text_p2_status)
+        cardPlayer2          = findViewById(R.id.card_player_2)
+        textP2Title          = findViewById(R.id.text_p2_title)
+        textP2Status         = findViewById(R.id.text_p2_status)
         buttonGesture        = findViewById(R.id.button_gesture)
         buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
         viewStatusDot        = findViewById(R.id.view_status_dot)
+//        buttonShare          = findViewById(R.id.button_share)
+//
+//        buttonShare.setOnClickListener {
+//            LatencyLogger.shareLatestFile(this)
+//        }
 
 
         cardPlayer1.setOnClickListener {
@@ -369,6 +376,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                         btnEnabled  = true,
                         gestureOn   = false
                     )
+                    wsViewModel.stopPingLoop()
+                    LatencyLogger.stopSession()
+
+                    LatencyLogger.getSessionStats()?.let { stats ->
+                        Log.d(
+                            "LatencyStats",                            "Session done: ${stats.samples} samples | " +
+                                    "Min: ${stats.minMs}ms | Max: ${stats.maxMs}ms | " +
+                                    "Avg: ${"%.1f".format(stats.avgMs)}ms | " +
+                                    "σ: ${"%.1f".format(stats.stdDevMs)}ms"
+                        )
+                    }
                 }
 
                 is UDPManager.ConnectionState.Connecting -> {
@@ -391,6 +409,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                         btnEnabled  = true,
                         gestureOn   = true
                     )
+                    wsViewModel.startPingLoop(1000L)
+                    LatencyLogger.startSession(this, UDPManager.playerId)
                 }
 
                 is UDPManager.ConnectionState.Error -> {
@@ -427,6 +447,15 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             } catch (e: Exception) {
                 Log.e(TAG, "Gesture observer error: $e")
             }
+        }
+
+        wsViewModel.latencyMs.observe(this) { ms ->
+            textConnectionStatus.text = "CONNECTED  •  ${ms}ms"
+            LatencyLogger.log(ms, UDPManager.playerId)
+        }
+
+        wsViewModel.vibrateEvent.observe(this) {
+            triggerVibration()
         }
     }
 
@@ -500,6 +529,18 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             textP2Title.setTextColor(colorRed)
             textP2Status.text = "AVAILABLE"
             textP2Status.setTextColor(colorDim)
+        }
+    }
+
+    private fun triggerVibration() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val effect = android.os.VibrationEffect.createOneShot(100, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+            vibrator.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(100) // in ms
         }
     }
 }

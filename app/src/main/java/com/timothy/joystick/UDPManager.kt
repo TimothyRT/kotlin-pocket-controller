@@ -35,9 +35,15 @@ object UDPManager {
     private var targetAddress: InetAddress? = null
     private var targetPort: Int = 9080
 
+    // Latency Log
     private var listenerJob: Job? = null
     private var watchdogJob: Job? = null
     private var lastMessageTime: Long = 0
+
+    // Vibrate
+    private val _vibrateEvent = MutableLiveData<Long>()
+    val vibrateEvent: LiveData<Long> get() = _vibrateEvent
+
 
     val serverSlots = MutableLiveData<Pair<Boolean, Boolean>>(Pair(false, false))
 
@@ -189,8 +195,22 @@ object UDPManager {
                     serverSlots.postValue(Pair(p1Taken, p2Taken))
                 }
 
-                text == "STATUS:PONG" || text == "STATUS:ALIVE" -> {
+                text == "STATUS:PONG" -> {
+                    if(pingTimestamp != 0L) {
+                        val rttNs = System.nanoTime() - pingTimestamp
+                        val rttMs = rttNs / 1_000_000
+                        _latencyMs.postValue(rttMs)
+                        Log.d(TAG, "Latency: ${rttMs}ms")
+                        pingTimestamp = 0L
+                    }
+                }
+
+                text == "STATUS:ALIVE" -> {
                     // Status online ACK
+                }
+
+                text == "CMD:VIBRATE" -> {
+                    _vibrateEvent.postValue(System.currentTimeMillis())
                 }
 
                 text == "STATUS:DISCONNECTED" -> {
@@ -201,5 +221,32 @@ object UDPManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message '$text': $e")
         }
+    }
+
+    // ===== Measuring Latency =====
+    private val _latencyMs = MutableLiveData<Long>()
+    val latencyMs: LiveData<Long> get() = _latencyMs
+
+    private var pingTimestamp: Long = 0L
+    private var pingJob: Job? = null
+
+    fun sendPing(){
+        pingTimestamp = System.nanoTime()
+        send("CMD:PING")
+    }
+
+    fun startPingLoop(intervalMs: Long = 1000L) {
+        pingJob?.cancel()
+        pingJob = scope.launch {
+            while (isActive && _connectionState.value == ConnectionState.Connected) {
+                sendPing()
+                delay(intervalMs)
+            }
+        }
+    }
+
+    fun stopPingLoop() {
+        pingJob?.cancel()
+        pingJob = null
     }
 }

@@ -235,5 +235,21 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
         wsViewModel.lastGesture.observe(this) { gesture ->
             gesture?.let { Log.d(TAG, "Gesture from server: ${it.name} (${it.confidence})") }
         }
+
+        wsViewModel.vibrateEvent.observe(this) {
+            triggerVibration()
+        }
+    }
+
+    private fun triggerVibration() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val effect = android.os.VibrationEffect.createOneShot(100, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+            vibrator.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(100) // in ms
+        }
     }
 }
