@@ -535,12 +535,18 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private fun triggerVibration() {
         val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
 
+        // Half a second vibration
+        val durationMs = 500L
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val effect = android.os.VibrationEffect.createOneShot(100, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+            val effect = android.os.VibrationEffect.createOneShot(
+                durationMs,
+                100
+            )
             vibrator.vibrate(effect)
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(100) // in ms
+            vibrator.vibrate(durationMs)
         }
     }
 }
