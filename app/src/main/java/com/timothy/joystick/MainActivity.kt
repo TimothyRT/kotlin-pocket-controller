@@ -24,6 +24,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.textfield.TextInputEditText
@@ -107,6 +108,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     // Lifecycle
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -129,6 +131,21 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
         magnetometer?.let   { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
         rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+
+        val state = wsViewModel.connectionState.value
+        if (state is UDPManager.ConnectionState.Disconnected || state is UDPManager.ConnectionState.Error) {
+            wsViewModel.stopPingLoop()
+            LatencyLogger.stopSession()
+            setStatusUi(
+                statusText  = "DISCONNECTED",
+                statusColor = android.R.color.holo_red_dark,
+                dotColor    = android.R.color.holo_red_dark,
+                btnLabel    = "CONNECT",
+                btnEnabled  = true,
+                gestureOn   = false
+            )
+            updatePlayerSlotsUI()
+        }
     }
 
     override fun onPause() {

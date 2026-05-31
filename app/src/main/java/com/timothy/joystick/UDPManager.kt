@@ -107,7 +107,7 @@ object UDPManager {
     fun disconnect() {
         send("CMD:DISCONNECT")
         scope.launch {
-            delay(50)
+            delay(150)
             listenerJob?.cancel()
             watchdogJob?.cancel()
             socket?.close()

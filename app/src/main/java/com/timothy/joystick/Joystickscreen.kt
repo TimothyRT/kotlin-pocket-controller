@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,6 +63,64 @@ private fun LockLandscape() {
     }
 }
 
+@Composable
+fun DPad(
+    enabled: Boolean,
+    onAxisChange: (String, Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.size(160.dp), contentAlignment = Alignment.Center) {
+        // UP
+        GamepadImageButton(
+            normalRes = R.drawable.dpad_top_press,
+            pressedRes = R.drawable.dpad_top_default,
+            enabled = enabled,
+            onPress = { onAxisChange("LEFT_Y", -1f) },
+            onRelease = { onAxisChange("LEFT_Y", 0f) },
+            modifier = Modifier.align(Alignment.TopCenter).size(65.dp)
+        )
+
+        // DOWN
+        GamepadImageButton(
+            normalRes = R.drawable.dpad_bottom_press,
+            pressedRes = R.drawable.dpad_bottom_default,
+            enabled = enabled,
+            onPress = { onAxisChange("LEFT_Y", 1f) },
+            onRelease = { onAxisChange("LEFT_Y", 0f) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .size(65.dp)
+                .graphicsLayer { rotationZ = 0f }
+        )
+
+        // LEFT
+        GamepadImageButton(
+            normalRes = R.drawable.dpad_left_press,
+            pressedRes = R.drawable.dpad_left_default,
+            enabled = enabled,
+            onPress = { onAxisChange("LEFT_X", -1f) },
+            onRelease = { onAxisChange("LEFT_X", 0f) },
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .size(65.dp)
+                .graphicsLayer { rotationZ = 0f }
+        )
+
+        // RIGHT
+        GamepadImageButton(
+            normalRes = R.drawable.dpad_right_press,
+            pressedRes = R.drawable.dpad_right_default,
+            enabled = enabled,
+            onPress = { onAxisChange("LEFT_X", 1f) },
+            onRelease = { onAxisChange("LEFT_X", 0f) },
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(65.dp)
+                .graphicsLayer { rotationZ = 0f }
+        )
+    }
+}
+
 // Root screen
 @Composable
 fun JoystickScreen(
@@ -66,7 +128,7 @@ fun JoystickScreen(
     onDisconnect: () -> Unit,
     onButtonPress: (String) -> Unit,
     onButtonRelease: (String) -> Unit,
-    onLeftStickReady: (VirtualThumbstick) -> Unit
+    onAxisChange: (String, Float) -> Unit
 ) {
     LockLandscape()
 
@@ -112,7 +174,7 @@ fun JoystickScreen(
                 enabled          = controlsEnabled,
                 onButtonPress    = onButtonPress,
                 onButtonRelease  = onButtonRelease,
-                onLeftStickReady = onLeftStickReady,
+                onAxisChange     = onAxisChange,
                 modifier         = Modifier.weight(1f).fillMaxHeight()
             )
 
@@ -146,7 +208,7 @@ private fun LeftPanel(
     enabled: Boolean,
     onButtonPress: (String) -> Unit,
     onButtonRelease: (String) -> Unit,
-    onLeftStickReady: (VirtualThumbstick) -> Unit,
+    onAxisChange: (String, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -163,10 +225,10 @@ private fun LeftPanel(
             modifier   = Modifier.size(120.dp)
         )
 
-        Box(modifier = Modifier.graphicsLayer { rotationZ = -5f }) {
-            AndroidView(
-                factory  = { ctx -> VirtualThumbstick(ctx).also { onLeftStickReady(it) } },
-                modifier = Modifier.size(160.dp)
+        Box(modifier = Modifier.graphicsLayer { rotationZ = -4f }) {
+            DPad(
+                enabled = enabled,
+                onAxisChange = onAxisChange
             )
         }
     }
@@ -188,20 +250,43 @@ private fun CenterPanel(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Status + Disconnect
+        // Status + BACK Button Row
         Row(
-            modifier              = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment     = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = statusText, color = statusColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            SystemPillButton(
-                label     = "Disconnect",
-                enabled   = true,
-                tint      = Color(0xFFE53935),
-                onPress   = { onDisconnect() },
-                onRelease = {}
-            )
+            // Status indicator
+            Box(
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = -2f }
+                    .background(Color(0xFF0A0A0A), CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp))
+                    .border(2.dp, statusColor, CutCornerShape(topStart = 16.dp, bottomEnd = 16.dp))
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = statusText.uppercase(),
+                    color = statusColor,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontStyle = FontStyle.Italic
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .graphicsLayer { rotationZ = 2f }
+                    .background(Color(0xFFD32F2F), CutCornerShape(topEnd = 16.dp, bottomStart = 16.dp))
+                    .clickable(enabled = true, onClick = { onDisconnect() })
+                    .padding(horizontal = 24.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "BACK",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontStyle = FontStyle.Italic
+                )
+            }
         }
 
         Row(

@@ -95,7 +95,9 @@ class JoystickActivity : AppCompatActivity(), SensorEventListener {
                     wsViewModel.send("BTN:$name:0")
                     if (name == "GESTURE_BUTTON_NAME") setGestureState(false)
                 },
-                onLeftStickReady  = { view -> leftStickView  = view }
+                onAxisChange = { axis, value ->
+                    wsViewModel.send("AXIS:$axis:$value")
+                }
             )
         }
 
