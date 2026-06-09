@@ -1,46 +1,560 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:background="@color/p5_black"
     tools:context=".MainActivity">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+
+    <View
+        android:id="@+id/bg_diagonal_red"
+        android:layout_width="280dp"
+        android:layout_height="1200dp"
+        android:background="@color/p5_red"
+        android:rotation="-22"
+        android:transformPivotX="0dp"
+        android:transformPivotY="0dp"
+        android:translationX="-80dp"
+        android:translationY="-180dp"
+        android:elevation="0dp"
+        android:alpha="0.92"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/bg_diagonal_white"
+        android:layout_width="6dp"
+        android:layout_height="900dp"
+        android:background="@color/p5_white"
+        android:rotation="-22"
+        android:transformPivotX="0dp"
+        android:transformPivotY="0dp"
+        android:translationX="96dp"
+        android:translationY="-180dp"
+        android:elevation="0dp"
+        android:alpha="0.85"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- HEADER -->
+    <TextView
+        android:id="@+id/text_title_top"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:text="POCKET"
+        android:textSize="58sp"
+        android:textStyle="bold"
+        android:textColor="@color/p5_white"
+        android:background="@color/p5_black"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:rotation="-3"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.12"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="48dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="HardcodedText" />
+
+    <TextView
+        android:id="@+id/text_title_bottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CONTROLLER"
+        android:textSize="50sp"
+        android:textStyle="bold"
+        android:textColor="@color/p5_red"
+        android:background="@color/p5_white"
+        android:paddingStart="8dp"
+        android:paddingEnd="12dp"
+        android:rotation="-2"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.08"
+        android:elevation="10dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginTop="-12dp"
+        app:layout_constraintTop_toBottomOf="@id/text_title_top"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="HardcodedText" />
+
+    <View
+        android:id="@+id/divider_main"
+        android:layout_width="0dp"
+        android:layout_height="2dp"
+        android:background="@color/p5_red"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="14dp"
+        app:layout_constraintTop_toBottomOf="@id/text_title_bottom"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/layout_tagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@id/divider_main"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <ImageView
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:src="@drawable/ic_p5_diamond_marker"
+            android:layout_marginEnd="8dp"
+            tools:ignore="ContentDescription" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/text_ip_address"
-            android:text="IP address: " />
-        <com.google.android.material.textfield.TextInputEditText
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:id="@+id/input_ip_address" />
-        <Button
+            android:text="TAKE CONTROL OF ANYTHING"
+            android:textSize="10sp"
+            android:textColor="@color/p5_white"
+            android:fontFamily="sans-serif-condensed"
+            android:letterSpacing="0.35"
+            tools:ignore="HardcodedText" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/card_ip_address"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_input_card"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="14dp"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="28dp"
+        app:layout_constraintTop_toBottomOf="@id/layout_tagline"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Label -->
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/button_connect"
-            android:text="CONNECT"
-            />
+            android:text="TARGET IP ADDRESS"
+            android:textSize="9sp"
+            android:textColor="@color/p5_red"
+            android:fontFamily="sans-serif-condensed"
+            android:textStyle="bold"
+            android:letterSpacing="0.4"
+            tools:ignore="HardcodedText" />
+
+        <!-- Input field -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/input_layout_ip"
+            style="@style/Persona.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="192.xxx.x.x">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/input_ip_address"
+                style="@style/Persona.TextInputEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:imeOptions="actionDone"
+                android:maxLines="1" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Status indicator row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
+
+            <!-- Coloured dot -->
+            <View
+                android:id="@+id/view_status_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/bg_status_dot"
+                android:backgroundTint="@android:color/holo_red_dark" />
+
+            <TextView
+                android:id="@+id/text_connection_status"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="DISCONNECTED"
+                android:textSize="10sp"
+                android:textColor="@android:color/holo_red_dark"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.25"
+                android:layout_marginStart="8dp"
+                tools:ignore="HardcodedText" />
+
+            <!-- Gesture result shown inline right of status -->
+            <TextView
+                android:id="@+id/text_gesture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="10sp"
+                android:textColor="@android:color/holo_green_dark"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.15"
+                android:maxLines="1" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_player_selection"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        app:layout_constraintTop_toBottomOf="@id/card_ip_address"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:id="@+id/card_player_1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/p5_red"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/text_p1_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PLAYER 1"
+                android:textColor="@color/p5_white"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/text_p1_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SELECTED"
+                android:textColor="@color/p5_white"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.2" />
+        </LinearLayout>
+
+        <Space
+            android:layout_width="16dp"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/card_player_2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@color/p5_black"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="4dp">
+
+            <TextView
+                android:id="@+id/text_p2_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PLAYER 2"
+                android:textColor="@color/p5_red"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.1" />
+
+            <TextView
+                android:id="@+id/text_p2_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AVAILABLE"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="10sp"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.2" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/button_connect"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:text="CONNECT"
+        android:textColor="@color/p5_white"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.25"
+        android:background="@drawable/bg_btn_outline"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="20dp"
+        app:layout_constraintTop_toBottomOf="@id/layout_player_selection"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/button_gesture"
+        android:layout_width="0dp"
+        android:layout_height="52dp"
+        android:visibility="gone"
+        android:text="HOLD\nGESTURE"
+        android:textColor="@color/p5_white"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.2"
+        android:gravity="center"
+        android:background="@drawable/bg_btn_secondary"
+        android:elevation="8dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/card_ip_address"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/button_connect"
+        app:layout_constraintWidth_percent="0.38" />
+
+    <Button
+        android:id="@+id/button_joystick_mode"
+        android:layout_width="0dp"
+        android:layout_height="68dp"
+        android:text="▶   LAUNCH CONTROLLER"
+        android:textColor="@color/p5_black"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.15"
+        android:background="@drawable/bg_btn_primary"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintTop_toBottomOf="@id/button_connect"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+<!--    <Button-->
+<!--        android:id="@+id/button_share"-->
+<!--        android:layout_width="0dp"-->
+<!--        android:layout_height="68dp"-->
+<!--        android:text="Share CSV"-->
+<!--        android:textColor="@color/p5_black"-->
+<!--        android:textSize="17sp"-->
+<!--        android:textStyle="bold"-->
+<!--        android:fontFamily="sans-serif-condensed"-->
+<!--        android:letterSpacing="0.15"-->
+<!--        android:background="@drawable/bg_btn_primary"-->
+<!--        android:elevation="8dp"-->
+<!--        android:layout_marginStart="20dp"-->
+<!--        android:layout_marginEnd="20dp"-->
+<!--        android:layout_marginTop="12dp"-->
+<!--        app:layout_constraintTop_toBottomOf="@id/button_connect"-->
+<!--        app:layout_constraintStart_toStartOf="parent"-->
+<!--        app:layout_constraintEnd_toEndOf="parent" />-->
+
+
+    <!-- Label -->
+    <TextView
+        android:id="@+id/text_sensor_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="LIVE TELEMETRY"
+        android:textSize="8sp"
+        android:textColor="@color/p5_red"
+        android:fontFamily="sans-serif-condensed"
+        android:textStyle="bold"
+        android:letterSpacing="0.4"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginBottom="4dp"
+        app:layout_constraintBottom_toTopOf="@id/layout_sensor_data"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="HardcodedText" />
+
+    <LinearLayout
+        android:id="@+id/layout_sensor_data"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_sensor_card"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:elevation="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Gyroscope column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="GYR"
+                android:textColor="@color/p5_red"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.3"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/text_gyroscope"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="8.5sp"
+                android:fontFamily="monospace"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <!-- Accelerometer column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ACC"
+                android:textColor="@color/p5_red"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.3"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/text_accelerometer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="8.5sp"
+                android:fontFamily="monospace"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <!-- Magnetometer column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="MAG"
+                android:textColor="@color/p5_red"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.3"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/text_magnetometer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="8.5sp"
+                android:fontFamily="monospace"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <!-- AHRS quaternion column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.2"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AHRS"
+                android:textColor="@color/p5_red"
+                android:textSize="8sp"
+                android:textStyle="bold"
+                android:fontFamily="sans-serif-condensed"
+                android:letterSpacing="0.3"
+                tools:ignore="HardcodedText" />
+
+            <TextView
+                android:id="@+id/text_ahrs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="—"
+                android:textColor="@color/p5_white_dim"
+                android:textSize="8.5sp"
+                android:fontFamily="monospace"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
     </LinearLayout>
 
     <TextView
+        android:id="@+id/text_version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/text_gyroscope"
-        tools:text="Gyroscope" />
+        android:text="v0.1.5 · ALPHA BUILD"
+        android:textSize="7.5sp"
+        android:textColor="@color/p5_white_faint"
+        android:fontFamily="sans-serif-condensed"
+        android:letterSpacing="0.3"
+        android:elevation="8dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/layout_sensor_data"
+        tools:ignore="HardcodedText" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/text_accelerometer"
-        tools:text="Accelerometer" />
-
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

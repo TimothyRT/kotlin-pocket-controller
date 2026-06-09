@@ -1,82 +1,150 @@
 package com.timothy.joystick
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.util.Log
+import android.view.MotionEvent
+import android.view.View
 import android.widget.Button
+import android.widget.RadioGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityOptionsCompat
+import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.textfield.TextInputEditText
-import org.w3c.dom.Text
-import java.util.concurrent.ArrayBlockingQueue
-
+import org.json.JSONArray
+import org.json.JSONObject
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
+
+    companion object {
+        private const val TAG            = "MainActivity"
+        private const val WINDOW_WIDTH   = 15
+        private const val SAMPLE_INTERVAL_MS = 33L
+    }
+
+    // Sensor
     private lateinit var sensorManager: SensorManager
-    private var gyroscope: Sensor? = null
-    private var accelerometer: Sensor? = null
+    private var gyroscope:      Sensor? = null
+    private var accelerometer:  Sensor? = null
+    private var magnetometer:   Sensor? = null
+    private var rotationVector: Sensor? = null
 
-//    private lateinit var textView: TextView
+    @Volatile private var latestGyro = FloatArray(3)
+    @Volatile private var latestAcc  = FloatArray(3)
+    @Volatile private var latestMag  = FloatArray(3)
+    @Volatile private var latestQuat = floatArrayOf(0f, 0f, 0f, 1f)
+    private var hasAcc = false
 
-    private lateinit var inputIpAddress: TextInputEditText
-    private lateinit var buttonConnect: Button
-    private lateinit var textGyroscope: TextView
-    private lateinit var textAccelerometer: TextView
+    // Player Selection
+    private lateinit var cardPlayer1: View
+    private lateinit var textP1Title: TextView
+    private lateinit var textP1Status: TextView
+
+    private lateinit var cardPlayer2: View
+    private lateinit var textP2Title: TextView
+    private lateinit var textP2Status: TextView
+
+    private var selectedPlayerSlot: Byte = 1
+
+    private var isPlayer1Taken = false
+    private var isPlayer2Taken = false
+
+    private val dataBuffer = linkedMapOf<String, MutableList<Any>>(
+        "gyro_x"   to mutableListOf(),
+        "gyro_y"   to mutableListOf(),
+        "gyro_z"   to mutableListOf(),
+        "acc_x"    to mutableListOf(),
+        "acc_y"    to mutableListOf(),
+        "acc_z"    to mutableListOf(),
+        "gesture"  to mutableListOf()
+    )
+
+    private val dateFormat     = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.US)
+    private var lastSampleMs   = 0L
+    private var isGesturePressed = false
+
+    // UI
+    private lateinit var inputIpAddress:       TextInputEditText
+    private lateinit var buttonConnect:        Button
+    private lateinit var textConnectionStatus: TextView
+    private lateinit var textGesture:          TextView
+    private lateinit var textGyroscope:        TextView
+    private lateinit var textAccelerometer:    TextView
+    private lateinit var textMagnetometer:     TextView
+    private lateinit var textAhrs:             TextView
+    private lateinit var buttonGesture:        Button
+    private lateinit var buttonJoystickMode:   Button
+    private lateinit var viewStatusDot:        View
+    // CSV Button
+    private lateinit var buttonShare:          Button
 
     private val wsViewModel: WebSocketViewModel by viewModels()
+    private var lastGestureTime    = 0L
+    private val gestureDebounceMs  = 500L
+    private lateinit var vibrator: Vibrator
 
-    val sensorQueue = ArrayBlockingQueue<String>(128)
+    // Lifecycle
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
-        inputIpAddress = findViewById(R.id.input_ip_address)
-        buttonConnect = findViewById(R.id.button_connect)
-        textGyroscope = findViewById(R.id.text_gyroscope)
-        textAccelerometer = findViewById(R.id.text_accelerometer)
-
-        buttonConnect.setOnClickListener {
-            wsViewModel.connect(inputIpAddress.text.toString())
-        }
-
-//        textView = TextView(this)
-//        setContentView(textView)
-
-        // Initialize the sensor manager
-        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
-        gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-
-        if (gyroscope == null) {
-            textGyroscope.text = "No Gyroscope Sensor Found!"
-        }
-        if (accelerometer == null) {
-            textAccelerometer.text = "No Accelerometer Sensor Found!"
-        }
-
-        startSenderThread()
+        initVibrator()
+        initViews()
+        initSensors()
+        observeViewModel()
     }
 
     override fun onResume() {
         super.onResume()
-        gyroscope?.also { sensor ->
-            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
-        }
-        accelerometer?.also { sensor ->
-            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+        gyroscope?.let      { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+        accelerometer?.let  { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+        magnetometer?.let   { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        rotationVector?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_GAME)   }
+
+        val state = wsViewModel.connectionState.value
+        if (state is UDPManager.ConnectionState.Disconnected || state is UDPManager.ConnectionState.Error) {
+            wsViewModel.stopPingLoop()
+            LatencyLogger.stopSession()
+            setStatusUi(
+                statusText  = "DISCONNECTED",
+                statusColor = android.R.color.holo_red_dark,
+                dotColor    = android.R.color.holo_red_dark,
+                btnLabel    = "CONNECT",
+                btnEnabled  = true,
+                gestureOn   = false
+            )
+            updatePlayerSlotsUI()
         }
     }
 
@@ -85,60 +153,417 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         sensorManager.unregisterListener(this)
     }
 
+    // Sensor Event Listener
     override fun onSensorChanged(event: SensorEvent?) {
-        event?.let {
-            if ((it.sensor?.type == Sensor.TYPE_ACCELEROMETER) or
-                (it.sensor?.type == Sensor.TYPE_GYROSCOPE)
-            ) {
-                val datetime = DatetimeManager.now()
+        event ?: return
+        when (event.sensor.type) {
+            Sensor.TYPE_ACCELEROMETER  -> { latestAcc = event.values.clone(); hasAcc = true }
+            Sensor.TYPE_MAGNETIC_FIELD -> { latestMag = event.values.clone() }
 
-                // Modify the text on the app's GUI accordingly
-                var sensorType = ""
-                when (it.sensor.type) {
-                    Sensor.TYPE_GYROSCOPE -> {
-//                        val x = it.values[0]
-//                        val y = it.values[1]
-//                        val z = it.values[2]
-//                        val message = "Gyroscope:\nX: $x\nY: $y\nZ: $z [Sent: $datetime}]"
-//                        textGyroscope.text = message
-                        sensorType = "gyroscope"
-                    }
-                    Sensor.TYPE_ACCELEROMETER -> {
-//                        val x = it.values[0]
-//                        val y = it.values[1]
-//                        val z = it.values[2]
-//                        val message = "Accelerometer:\nX: $x\nY: $y\nZ: $z [Sent: $datetime]"
-//                        textAccelerometer.text = message
-                        sensorType = "accelerometer"
-                    }
-                }
+            Sensor.TYPE_ROTATION_VECTOR -> {
+                val q = FloatArray(4)
+                SensorManager.getQuaternionFromVector(q, event.values)
+                latestQuat = floatArrayOf(q[1], q[2], q[3], q[0])
+            }
 
-                val jsonString = "{" +
-                        "\"x\": ${it.values[0]}, " +
-                        "\"y\": ${it.values[1]}, " +
-                        "\"z\": ${it.values[2]}, " +
-                        "\"datetime\": \"${datetime}\", " +
-                        "\"sensor\": \"$sensorType\"}"
+            Sensor.TYPE_GYROSCOPE -> {
+                if (!hasAcc) return
+                val nowMs = System.currentTimeMillis()
+                if (nowMs - lastSampleMs < SAMPLE_INTERVAL_MS) return
+                lastSampleMs = nowMs
 
-                // Drop the oldest frame if queue is full; otherwise insert without removing
-                if (!sensorQueue.offer(jsonString)) {
-                    sensorQueue.poll()  // remove oldest
-                    sensorQueue.offer(jsonString)  // insert newest
-                }
+                latestGyro = event.values.clone()
+
+                // Update the UI
+                updateSensorDisplay(latestGyro, latestAcc, latestMag, latestQuat[3], latestQuat[0], latestQuat[1], latestQuat[2])
+
+                // Send (Instant "Should be")
+                sendSensorBinary(latestAcc, latestGyro, isGesturePressed)
             }
         }
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Not needed for basic gyroscope use
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+    private fun sendSensorBinary(acc: FloatArray, gyro: FloatArray, gesturePressed: Boolean) {
+        // Only send if connected
+        if (wsViewModel.connectionState.value !is UDPManager.ConnectionState.Connected) return
+
+        // Allocated 27 bytes: 1 (type) + 1 (player_id) + 24 (6 floats) + 1 (boolean)
+        val buffer = ByteBuffer.allocate(27).order(ByteOrder.LITTLE_ENDIAN)
+
+        buffer.put(1.toByte()) // Packet Type 1: Sensor Data
+
+        // Player ID (1 byte)
+        buffer.put(UDPManager.playerId)
+
+        // Accelerometer (12 bytes)
+        buffer.putFloat(acc[0])
+        buffer.putFloat(acc[1])
+        buffer.putFloat(acc[2])
+
+        // Gyroscope (12 bytes)
+        buffer.putFloat(gyro[0])
+        buffer.putFloat(gyro[1])
+        buffer.putFloat(gyro[2])
+
+        // Gesture State (1 byte)
+        buffer.put((if (gesturePressed) 1 else 0).toByte())
+
+        // Send
+        wsViewModel.sendBytes(buffer.array())
     }
 
-    private fun startSenderThread() {
-        Thread {
-            while (true) {
-                val jsonString = sensorQueue.take()
-                wsViewModel.send(jsonString)
+
+    private fun updateSensorDisplay(
+        gyro: FloatArray, acc: FloatArray, mag: FloatArray,
+        qw: Float, qx: Float, qy: Float, qz: Float
+    ) = runOnUiThread {
+        textGyroscope.text     = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(gyro[0], gyro[1], gyro[2])
+        textAccelerometer.text = "X: %+.2f\nY: %+.2f\nZ: %+.2f".format(acc[0],  acc[1],  acc[2])
+        textMagnetometer.text  = "X: %+.1f\nY: %+.1f\nZ: %+.1f".format(mag[0],  mag[1],  mag[2])
+        textAhrs.text          = "w:%.3f\nx:%.3f\ny:%.3f\nz:%.3f".format(qw, qx, qy, qz)
+    }
+
+    // Init
+
+    private fun initVibrator() {
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    }
+
+    private fun vibrateSuccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+        else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(100)
+        }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun initViews() {
+        inputIpAddress       = findViewById(R.id.input_ip_address)
+        buttonConnect        = findViewById(R.id.button_connect)
+        textConnectionStatus = findViewById(R.id.text_connection_status)
+        textGesture          = findViewById(R.id.text_gesture)
+        textGyroscope        = findViewById(R.id.text_gyroscope)
+        textAccelerometer    = findViewById(R.id.text_accelerometer)
+        textMagnetometer     = findViewById(R.id.text_magnetometer)
+        textAhrs             = findViewById(R.id.text_ahrs)
+        cardPlayer1 = findViewById(R.id.card_player_1)
+        textP1Title = findViewById(R.id.text_p1_title)
+        textP1Status = findViewById(R.id.text_p1_status)
+
+        cardPlayer2          = findViewById(R.id.card_player_2)
+        textP2Title          = findViewById(R.id.text_p2_title)
+        textP2Status         = findViewById(R.id.text_p2_status)
+        buttonGesture        = findViewById(R.id.button_gesture)
+        buttonJoystickMode   = findViewById(R.id.button_joystick_mode)
+        viewStatusDot        = findViewById(R.id.view_status_dot)
+//        buttonShare          = findViewById(R.id.button_share)
+//
+//        buttonShare.setOnClickListener {
+//            LatencyLogger.shareLatestFile(this)
+//        }
+
+
+        cardPlayer1.setOnClickListener {
+            // Lock the button if already connected
+            if (wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected) {
+                Toast.makeText(this, "Disconnect to change players.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-        }.start()
+
+            if (!isPlayer1Taken) {
+                // Unselect Button
+                selectedPlayerSlot = if (selectedPlayerSlot == 1.toByte()) 0 else 1
+                updatePlayerSlotsUI()
+            }
+        }
+
+        cardPlayer2.setOnClickListener {
+            // Lock the button if already connected
+            if (wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected) {
+                Toast.makeText(this, "Disconnect to change players.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!isPlayer2Taken) {
+                // Unselect Button
+                selectedPlayerSlot = if (selectedPlayerSlot == 2.toByte()) 0 else 2
+                updatePlayerSlotsUI()
+            }
+        }
+
+        updatePlayerSlotsUI()
+
+        // Launch Controller
+        buttonJoystickMode.setOnClickListener {
+            val ip = inputIpAddress.text.toString().trim()
+            if (ip.isEmpty()) {
+                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val intent = Intent(this, JoystickActivity::class.java).apply {
+                putExtra(JoystickActivity.EXTRA_IP, ip)
+            }
+
+            val options = ActivityOptionsCompat.makeCustomAnimation(
+                this,
+                R.anim.p5_enter,
+                R.anim.p5_exit
+            )
+
+            startActivity(intent, options.toBundle())
+        }
+
+        // Connect / Disconnect
+        buttonConnect.setOnClickListener {
+            if (selectedPlayerSlot == 0.toByte()) {
+                Toast.makeText(this, "Please select a Player Slot!", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val ip = inputIpAddress.text.toString().trim()
+            if (ip.isEmpty()) {
+                Toast.makeText(this, "Enter IP address first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Player ID
+            UDPManager.playerId = selectedPlayerSlot
+
+            when (wsViewModel.connectionState.value) {
+                is UDPManager.ConnectionState.Connected -> wsViewModel.disconnect()
+                else -> wsViewModel.connect(ip)
+            }
+        }
+
+        // Gesture Hold Button
+        buttonGesture.setOnTouchListener { _, me ->
+            when (me.action) {
+                MotionEvent.ACTION_DOWN                            -> isGesturePressed = true
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL  -> isGesturePressed = false
+            }
+            false
+        }
+        // Start visually inactive; enabled only once connected
+        buttonGesture.alpha     = 0.4f
+        buttonGesture.isEnabled = false
+    }
+
+    private fun initSensors() {
+        sensorManager  = getSystemService(SENSOR_SERVICE) as SensorManager
+        gyroscope       = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        accelerometer   = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        magnetometer    = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        rotationVector  = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+
+        if (rotationVector == null) Log.w(TAG, "Rotation vector unavailable — AHRS will be identity")
+        if (magnetometer   == null) Log.w(TAG, "Magnetometer unavailable — heading accuracy reduced")
+    }
+
+    // Viewmodel Observer
+
+    private fun observeViewModel() {
+        UDPManager.serverSlots.observe(this) { slots ->
+            isPlayer1Taken = slots.first
+            isPlayer2Taken = slots.second
+            updatePlayerSlotsUI()
+        }
+
+        wsViewModel.connectionState.observe(this) { state ->
+            if (state is UDPManager.ConnectionState.Connected) {
+                selectedPlayerSlot = UDPManager.playerId
+                updatePlayerSlotsUI()
+            }
+
+            when (state) {
+
+                is UDPManager.ConnectionState.Disconnected -> {
+                    setStatusUi(
+                        statusText  = "DISCONNECTED",
+                        statusColor = android.R.color.holo_red_dark,
+                        dotColor    = android.R.color.holo_red_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = false
+                    )
+                    wsViewModel.stopPingLoop()
+                    LatencyLogger.stopSession()
+
+                    LatencyLogger.getSessionStats()?.let { stats ->
+                        Log.d(
+                            "LatencyStats",                            "Session done: ${stats.samples} samples | " +
+                                    "Min: ${stats.minMs}ms | Max: ${stats.maxMs}ms | " +
+                                    "Avg: ${"%.1f".format(stats.avgMs)}ms | " +
+                                    "σ: ${"%.1f".format(stats.stdDevMs)}ms"
+                        )
+                    }
+                }
+
+                is UDPManager.ConnectionState.Connecting -> {
+                    setStatusUi(
+                        statusText  = "CONNECTING...",
+                        statusColor = android.R.color.holo_orange_dark,
+                        dotColor    = android.R.color.holo_orange_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = false,
+                        gestureOn   = false
+                    )
+                }
+
+                is UDPManager.ConnectionState.Connected -> {
+                    setStatusUi(
+                        statusText  = "CONNECTED",
+                        statusColor = android.R.color.holo_green_dark,
+                        dotColor    = android.R.color.holo_green_dark,
+                        btnLabel    = "DISCONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = true
+                    )
+                    wsViewModel.startPingLoop(1000L)
+                    LatencyLogger.startSession(this, UDPManager.playerId)
+                }
+
+                is UDPManager.ConnectionState.Error -> {
+                    setStatusUi(
+                        statusText  = "ERR: ${state.message}",
+                        statusColor = android.R.color.holo_red_dark,
+                        dotColor    = android.R.color.holo_red_dark,
+                        btnLabel    = "CONNECT",
+                        btnEnabled  = true,
+                        gestureOn   = false
+                    )
+                }
+            }
+        }
+
+        wsViewModel.lastGesture.observe(this) { gesture ->
+            try {
+                gesture?.let {
+                    val now = System.currentTimeMillis()
+                    if (now - lastGestureTime < gestureDebounceMs) return@let
+                    lastGestureTime = now
+
+                    val pct = (it.confidence * 100).toInt()
+                    textGesture.text = "${it.name.uppercase()} ($pct%)"
+                    textGesture.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+                    vibrateSuccess()
+
+                    // Reset gesture label after 1.5 s
+                    textGesture.postDelayed({
+                        try { textGesture.text = "" }
+                        catch (e: Exception) { Log.e(TAG, "UI reset: $e") }
+                    }, 1500)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Gesture observer error: $e")
+            }
+        }
+
+        wsViewModel.latencyMs.observe(this) { ms ->
+            textConnectionStatus.text = "CONNECTED  •  ${ms}ms"
+            LatencyLogger.log(ms, UDPManager.playerId)
+        }
+
+        wsViewModel.vibrateEvent.observe(this) {
+            triggerVibration()
+        }
+    }
+
+    private fun setStatusUi(
+        statusText:  String,
+        statusColor: Int,
+        dotColor:    Int,
+        btnLabel:    String,
+        btnEnabled:  Boolean,
+        gestureOn:   Boolean
+    ) {
+        val color = ContextCompat.getColor(this, statusColor)
+        val dot   = ContextCompat.getColor(this, dotColor)
+
+        textConnectionStatus.text  = statusText
+        textConnectionStatus.setTextColor(color)
+
+        viewStatusDot.backgroundTintList =
+            android.content.res.ColorStateList.valueOf(dot)
+
+        buttonConnect.text      = btnLabel
+        buttonConnect.isEnabled = btnEnabled
+
+        buttonGesture.isEnabled = gestureOn
+        buttonGesture.alpha     = if (gestureOn) 1f else 0.4f
+    }
+
+    private fun updatePlayerSlotsUI() {
+        val colorRed = ContextCompat.getColor(this, R.color.p5_red)
+        val colorBlack = ContextCompat.getColor(this, R.color.p5_black)
+        val colorWhite = ContextCompat.getColor(this, R.color.p5_white)
+        val colorDim = ContextCompat.getColor(this, R.color.p5_white_dim)
+        val colorDisabledBg = android.graphics.Color.parseColor("#1A1A1A")
+        val colorDisabledText = android.graphics.Color.parseColor("#4D4D4D")
+
+        val isConnected = wsViewModel.connectionState.value is UDPManager.ConnectionState.Connected
+
+        val p1IsMine = isConnected && UDPManager.playerId == 1.toByte()
+
+        if (isPlayer1Taken && !p1IsMine) {
+            cardPlayer1.setBackgroundColor(colorDisabledBg)
+            textP1Title.setTextColor(colorDisabledText)
+            textP1Status.text = "TAKEN"
+            textP1Status.setTextColor(colorDisabledText)
+        } else if (selectedPlayerSlot == 1.toByte()) {
+            cardPlayer1.setBackgroundColor(colorRed)
+            textP1Title.setTextColor(colorWhite)
+            textP1Status.text = "SELECTED"
+            textP1Status.setTextColor(colorWhite)
+        } else {
+            cardPlayer1.setBackgroundColor(colorBlack)
+            textP1Title.setTextColor(colorRed)
+            textP1Status.text = "AVAILABLE"
+            textP1Status.setTextColor(colorDim)
+        }
+
+        val p2IsMine = isConnected && UDPManager.playerId == 2.toByte()
+
+        if (isPlayer2Taken && !p2IsMine) {
+            cardPlayer2.setBackgroundColor(colorDisabledBg)
+            textP2Title.setTextColor(colorDisabledText)
+            textP2Status.text = "TAKEN"
+            textP2Status.setTextColor(colorDisabledText)
+        } else if (selectedPlayerSlot == 2.toByte()) {
+            cardPlayer2.setBackgroundColor(colorRed)
+            textP2Title.setTextColor(colorWhite)
+            textP2Status.text = "SELECTED"
+            textP2Status.setTextColor(colorWhite)
+        } else {
+            cardPlayer2.setBackgroundColor(colorBlack)
+            textP2Title.setTextColor(colorRed)
+            textP2Status.text = "AVAILABLE"
+            textP2Status.setTextColor(colorDim)
+        }
+    }
+
+    private fun triggerVibration() {
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+
+        // Half a second vibration
+        val durationMs = 500L
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val effect = android.os.VibrationEffect.createOneShot(
+                durationMs,
+                100
+            )
+            vibrator.vibrate(effect)
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(durationMs)
+        }
     }
 }
